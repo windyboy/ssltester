@@ -49,3 +49,6 @@ gen/
 # 特定应用程序生成的文件
 *.hprof
 .attach_*
+
+*.log
+
