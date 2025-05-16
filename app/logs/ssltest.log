@@ -1,0 +1,160 @@
+2025-05-16 16:53:22.998 [main] INFO  org.example.SSLTest - Connecting to https://163.com …
+2025-05-16 16:53:23.416 [main] INFO  org.example.SSLTest - → HTTP Status  : 301
+2025-05-16 16:53:23.416 [main] INFO  org.example.SSLTest - → Cipher Suite : TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+2025-05-16 16:53:23.417 [main] INFO  org.example.SSLTest - → Certificate chain trusted
+2025-05-16 16:53:23.418 [main] INFO  org.example.SSLTest - → Hostname verification passed
+2025-05-16 16:53:23.418 [main] INFO  org.example.SSLTest - → Server sent 3 certificate(s):
+2025-05-16 16:53:23.418 [main] INFO  org.example.SSLTest - Certificate [1]
+2025-05-16 16:53:23.424 [main] INFO  org.example.SSLTest -     Subject DN    : CN=*.163.com,O=NetEase (Hangzhou) Network Co.\, Ltd,L=Hangzhou,ST=Zhejiang,C=CN
+2025-05-16 16:53:23.424 [main] INFO  org.example.SSLTest -     Issuer DN     : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:53:23.424 [main] INFO  org.example.SSLTest -     Version       : 3
+2025-05-16 16:53:23.424 [main] INFO  org.example.SSLTest -     Serial Number : 9306F2F200A734ECBEA8E9FDEA50C0A
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -     Valid From    : 2024-12-19 08:00:00 CST
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -     Valid Until   : 2026-01-20 07:59:59 CST
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -     PubKey Alg    : RSA
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -     SubjectAltNames:
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -       • 2: *.163.com
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -       • 2: 163.com
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest - 
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest - Certificate [2]
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -     Subject DN    : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:53:23.425 [main] INFO  org.example.SSLTest -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Version       : 3
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Serial Number : B1362B6EE6A9D3E968930F16E207D39
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Valid From    : 2020-03-04 20:04:40 CST
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Valid Until   : 2030-03-04 20:04:40 CST
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     PubKey Alg    : RSA
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest - 
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest - Certificate [3]
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Subject DN    : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:53:23.426 [main] INFO  org.example.SSLTest -     Version       : 3
+2025-05-16 16:53:23.427 [main] INFO  org.example.SSLTest -     Serial Number : 83BE056904246B1A1756AC95991C74A
+2025-05-16 16:53:23.427 [main] INFO  org.example.SSLTest -     Valid From    : 2006-11-10 08:00:00 CST
+2025-05-16 16:53:23.427 [main] INFO  org.example.SSLTest -     Valid Until   : 2031-11-10 08:00:00 CST
+2025-05-16 16:53:23.427 [main] INFO  org.example.SSLTest -     Sig. Algorithm: SHA1withRSA
+2025-05-16 16:53:23.427 [main] INFO  org.example.SSLTest -     PubKey Alg    : RSA
+2025-05-16 16:53:23.427 [main] INFO  org.example.SSLTest - 
+2025-05-16 16:53:23.427 [main] INFO  org.example.SSLTest - ✅ SSL handshake and HTTP request succeeded.
+2025-05-16 16:54:18 INFO  - Connecting to https://163.com …
+2025-05-16 16:54:18 INFO  - → HTTP Status  : 301
+2025-05-16 16:54:18 INFO  - → Cipher Suite : TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+2025-05-16 16:54:18 INFO  - → Certificate chain trusted
+2025-05-16 16:54:18 INFO  - → Hostname verification passed
+2025-05-16 16:54:18 INFO  - → Server sent 3 certificate(s):
+2025-05-16 16:54:18 INFO  - Certificate [1]
+2025-05-16 16:54:18 INFO  -     Subject DN    : CN=*.163.com,O=NetEase (Hangzhou) Network Co.\, Ltd,L=Hangzhou,ST=Zhejiang,C=CN
+2025-05-16 16:54:18 INFO  -     Issuer DN     : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:54:18 INFO  -     Version       : 3
+2025-05-16 16:54:18 INFO  -     Serial Number : 9306F2F200A734ECBEA8E9FDEA50C0A
+2025-05-16 16:54:18 INFO  -     Valid From    : 2024-12-19 08:00:00 CST
+2025-05-16 16:54:18 INFO  -     Valid Until   : 2026-01-20 07:59:59 CST
+2025-05-16 16:54:18 INFO  -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:54:18 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:54:18 INFO  -     SubjectAltNames:
+2025-05-16 16:54:18 INFO  -       • 2: *.163.com
+2025-05-16 16:54:18 INFO  -       • 2: 163.com
+2025-05-16 16:54:18 INFO  - 
+2025-05-16 16:54:18 INFO  - Certificate [2]
+2025-05-16 16:54:18 INFO  -     Subject DN    : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:54:18 INFO  -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:54:18 INFO  -     Version       : 3
+2025-05-16 16:54:18 INFO  -     Serial Number : B1362B6EE6A9D3E968930F16E207D39
+2025-05-16 16:54:18 INFO  -     Valid From    : 2020-03-04 20:04:40 CST
+2025-05-16 16:54:18 INFO  -     Valid Until   : 2030-03-04 20:04:40 CST
+2025-05-16 16:54:18 INFO  -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:54:18 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:54:18 INFO  - 
+2025-05-16 16:54:18 INFO  - Certificate [3]
+2025-05-16 16:54:18 INFO  -     Subject DN    : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:54:18 INFO  -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:54:18 INFO  -     Version       : 3
+2025-05-16 16:54:18 INFO  -     Serial Number : 83BE056904246B1A1756AC95991C74A
+2025-05-16 16:54:18 INFO  -     Valid From    : 2006-11-10 08:00:00 CST
+2025-05-16 16:54:18 INFO  -     Valid Until   : 2031-11-10 08:00:00 CST
+2025-05-16 16:54:18 INFO  -     Sig. Algorithm: SHA1withRSA
+2025-05-16 16:54:18 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:54:18 INFO  - 
+2025-05-16 16:54:18 INFO  - ✅ SSL handshake and HTTP request succeeded.
+2025-05-16 16:54:48 INFO  - Connecting to https://163.com …
+2025-05-16 16:54:48 INFO  - → HTTP Status  : 301
+2025-05-16 16:54:48 INFO  - → Cipher Suite : TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+2025-05-16 16:54:48 INFO  - → Certificate chain trusted
+2025-05-16 16:54:48 INFO  - → Hostname verification passed
+2025-05-16 16:54:48 INFO  - → Server sent 3 certificate(s):
+2025-05-16 16:54:48 INFO  - Certificate [1]
+2025-05-16 16:54:48 INFO  -     Subject DN    : CN=*.163.com,O=NetEase (Hangzhou) Network Co.\, Ltd,L=Hangzhou,ST=Zhejiang,C=CN
+2025-05-16 16:54:48 INFO  -     Issuer DN     : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:54:48 INFO  -     Version       : 3
+2025-05-16 16:54:48 INFO  -     Serial Number : 9306F2F200A734ECBEA8E9FDEA50C0A
+2025-05-16 16:54:48 INFO  -     Valid From    : 2024-12-19 08:00:00 CST
+2025-05-16 16:54:48 INFO  -     Valid Until   : 2026-01-20 07:59:59 CST
+2025-05-16 16:54:48 INFO  -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:54:48 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:54:48 INFO  -     SubjectAltNames:
+2025-05-16 16:54:48 INFO  -       • 2: *.163.com
+2025-05-16 16:54:48 INFO  -       • 2: 163.com
+2025-05-16 16:54:48 INFO  - 
+2025-05-16 16:54:48 INFO  - Certificate [2]
+2025-05-16 16:54:48 INFO  -     Subject DN    : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:54:48 INFO  -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:54:48 INFO  -     Version       : 3
+2025-05-16 16:54:48 INFO  -     Serial Number : B1362B6EE6A9D3E968930F16E207D39
+2025-05-16 16:54:48 INFO  -     Valid From    : 2020-03-04 20:04:40 CST
+2025-05-16 16:54:48 INFO  -     Valid Until   : 2030-03-04 20:04:40 CST
+2025-05-16 16:54:48 INFO  -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:54:48 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:54:48 INFO  - 
+2025-05-16 16:54:48 INFO  - Certificate [3]
+2025-05-16 16:54:48 INFO  -     Subject DN    : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:54:48 INFO  -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:54:48 INFO  -     Version       : 3
+2025-05-16 16:54:48 INFO  -     Serial Number : 83BE056904246B1A1756AC95991C74A
+2025-05-16 16:54:48 INFO  -     Valid From    : 2006-11-10 08:00:00 CST
+2025-05-16 16:54:48 INFO  -     Valid Until   : 2031-11-10 08:00:00 CST
+2025-05-16 16:54:48 INFO  -     Sig. Algorithm: SHA1withRSA
+2025-05-16 16:54:48 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:54:48 INFO  - 
+2025-05-16 16:54:48 INFO  - ✅ SSL handshake and HTTP request succeeded.
+2025-05-16 16:55:15 INFO  - Connecting to https://163.com …
+2025-05-16 16:55:15 INFO  - → HTTP Status  : 301
+2025-05-16 16:55:15 INFO  - → Cipher Suite : TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+2025-05-16 16:55:15 INFO  - → Certificate chain trusted
+2025-05-16 16:55:15 INFO  - → Hostname verification passed
+2025-05-16 16:55:15 INFO  - → Server sent 3 certificate(s):
+2025-05-16 16:55:15 INFO  - Certificate [1]
+2025-05-16 16:55:15 INFO  -     Subject DN    : CN=*.163.com,O=NetEase (Hangzhou) Network Co.\, Ltd,L=Hangzhou,ST=Zhejiang,C=CN
+2025-05-16 16:55:15 INFO  -     Issuer DN     : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:55:15 INFO  -     Version       : 3
+2025-05-16 16:55:15 INFO  -     Serial Number : 9306F2F200A734ECBEA8E9FDEA50C0A
+2025-05-16 16:55:15 INFO  -     Valid From    : 2024-12-19 08:00:00 CST
+2025-05-16 16:55:15 INFO  -     Valid Until   : 2026-01-20 07:59:59 CST
+2025-05-16 16:55:15 INFO  -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:55:15 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:55:15 INFO  -     SubjectAltNames:
+2025-05-16 16:55:15 INFO  -       • 2: *.163.com
+2025-05-16 16:55:15 INFO  -       • 2: 163.com
+2025-05-16 16:55:15 INFO  - 
+2025-05-16 16:55:15 INFO  - Certificate [2]
+2025-05-16 16:55:15 INFO  -     Subject DN    : CN=GeoTrust RSA CN CA G2,O=DigiCert Inc,C=US
+2025-05-16 16:55:15 INFO  -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:55:15 INFO  -     Version       : 3
+2025-05-16 16:55:15 INFO  -     Serial Number : B1362B6EE6A9D3E968930F16E207D39
+2025-05-16 16:55:15 INFO  -     Valid From    : 2020-03-04 20:04:40 CST
+2025-05-16 16:55:15 INFO  -     Valid Until   : 2030-03-04 20:04:40 CST
+2025-05-16 16:55:15 INFO  -     Sig. Algorithm: SHA256withRSA
+2025-05-16 16:55:15 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:55:15 INFO  - 
+2025-05-16 16:55:15 INFO  - Certificate [3]
+2025-05-16 16:55:15 INFO  -     Subject DN    : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:55:15 INFO  -     Issuer DN     : CN=DigiCert Global Root CA,OU=www.digicert.com,O=DigiCert Inc,C=US
+2025-05-16 16:55:15 INFO  -     Version       : 3
+2025-05-16 16:55:15 INFO  -     Serial Number : 83BE056904246B1A1756AC95991C74A
+2025-05-16 16:55:15 INFO  -     Valid From    : 2006-11-10 08:00:00 CST
+2025-05-16 16:55:15 INFO  -     Valid Until   : 2031-11-10 08:00:00 CST
+2025-05-16 16:55:15 INFO  -     Sig. Algorithm: SHA1withRSA
+2025-05-16 16:55:15 INFO  -     PubKey Alg    : RSA
+2025-05-16 16:55:15 INFO  - 
+2025-05-16 16:55:15 INFO  - ✅ SSL handshake and HTTP request succeeded.
