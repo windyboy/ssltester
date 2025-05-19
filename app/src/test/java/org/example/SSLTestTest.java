@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.net.URL;
 
 import static org.junit.jupiter.api.Assertions.*;
 

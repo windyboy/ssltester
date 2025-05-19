@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.security.KeyPair;
