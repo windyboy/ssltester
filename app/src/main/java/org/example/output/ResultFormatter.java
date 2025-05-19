@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 
@@ -30,13 +31,19 @@ public class ResultFormatter {
                 case YAML:
                     output = yamlMapper.writeValueAsString(result);
                     break;
+                case TEXT:
+                    output = formatTextOutput(result);
+                    break;
                 default:
-                    return; // TEXT format is handled by direct logging
+                    return;
             }
 
             if (config.getOutputFile() != null) {
-                try (PrintWriter writer = new PrintWriter(new FileWriter(config.getOutputFile()))) {
-                    writer.println(output);
+                try (FileWriter writer = new FileWriter(config.getOutputFile())) {
+                    writer.write(output);
+                    writer.flush();
+                } catch (IOException e) {
+                    logger.error("Error writing to output file", e);
                 }
             } else {
                 System.out.println(output);
@@ -44,6 +51,14 @@ public class ResultFormatter {
         } catch (Exception e) {
             logger.error("输出结果时发生错误: {}", e.getMessage());
         }
+    }
+
+    private String formatTextOutput(Map<String, Object> result) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Object> entry : result.entrySet()) {
+            sb.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
+        }
+        return sb.toString();
     }
 
     public void logError(String message, Throwable cause, int exitCode) {

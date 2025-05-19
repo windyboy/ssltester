@@ -29,6 +29,11 @@ dependencies {
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.11")
     implementation("ch.qos.logback:logback-classic:1.4.14")
+
+    // Testing
+    testImplementation("org.junit.jupiter:junit-jupiter:5.12.1")
+    testImplementation("org.bouncycastle:bcprov-jdk18on:1.77")
+    testImplementation("org.bouncycastle:bcpkix-jdk18on:1.77")
 }
 
 testing {

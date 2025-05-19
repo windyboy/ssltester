@@ -32,6 +32,9 @@ public class CertificateValidator {
     }
 
     public X509Certificate[] validateCertificateChain(Certificate[] certs) throws CertificateException {
+        if (certs == null || certs.length == 0) {
+            throw new CertificateException("No certificates provided");
+        }
         X509Certificate[] x509Certs = Arrays.copyOf(certs, certs.length, X509Certificate[].class);
         TrustManagerFactory tmf = initializeTrustManagerFactory();
         X509TrustManager tm = findX509TrustManager(tmf);

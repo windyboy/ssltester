@@ -44,6 +44,17 @@ public class SSLTestConfig {
     public OutputFormat getFormat() { return format; }
     public boolean isVerbose() { return verbose; }
 
+    // Setters
+    public void setUrl(String url) { this.url = url; }
+    public void setConnectionTimeout(int connectionTimeout) { this.connectionTimeout = connectionTimeout; }
+    public void setReadTimeout(int readTimeout) { this.readTimeout = readTimeout; }
+    public void setFollowRedirects(boolean followRedirects) { this.followRedirects = followRedirects; }
+    public void setKeystoreFile(File keystoreFile) { this.keystoreFile = keystoreFile; }
+    public void setKeystorePassword(String keystorePassword) { this.keystorePassword = keystorePassword; }
+    public void setOutputFile(File outputFile) { this.outputFile = outputFile; }
+    public void setFormat(OutputFormat format) { this.format = format; }
+    public void setVerbose(boolean verbose) { this.verbose = verbose; }
+
     public enum OutputFormat {
         TEXT, JSON, YAML
     }

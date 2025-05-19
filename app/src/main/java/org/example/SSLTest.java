@@ -38,12 +38,19 @@ public class SSLTest implements Callable<Integer> {
     private static final int EXIT_UNEXPECTED_ERROR = 99;
 
     @CommandLine.Mixin
-    private final SSLTestConfig config = new SSLTestConfig();
+    private final SSLTestConfig config;
     private final CertificateValidator certValidator;
     private final ResultFormatter resultFormatter;
     private final Map<String, Object> result = new HashMap<>();
 
+    // No-arg constructor for CLI use
     public SSLTest() {
+        this(new SSLTestConfig());
+    }
+
+    // Constructor for test/dependency injection
+    public SSLTest(SSLTestConfig config) {
+        this.config = config;
         this.certValidator = new CertificateValidator(config.getKeystoreFile(), config.getKeystorePassword());
         this.resultFormatter = new ResultFormatter(config);
     }
