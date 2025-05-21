@@ -19,6 +19,7 @@ import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +134,7 @@ public class SSLTest implements Callable<Integer> {
 
             Certificate[] certs = conn.getServerCertificates();
             X509Certificate[] x509Certs = certValidator.validateCertificateChain(certs);
-            validateHostname( url, x509Certs[0]);
+            validateHostname(url, x509Certs[0]);
             processCertificates(x509Certs);
 
             logger.info("✅ SSL handshake and HTTP request succeeded.");
@@ -185,30 +186,46 @@ public class SSLTest implements Callable<Integer> {
         }
     }
 
-    private void processCertificates(X509Certificate[] certs) throws Exception {
-        logger.info("→ Server sent {} certificate(s):", certs.length);
-        result.put("certificateCount", certs.length);
-        
-        List<Map<String, Object>> certDetails = new ArrayList<>(certs.length);
-        for (int i = 0; i < certs.length; i++) {
-            X509Certificate cert = certs[i];
-            Map<String, Object> info = certValidator.getCertificateInfo(cert);
+    private void processCertificates(X509Certificate[] certs) {
+        List<Map<String, Object>> certList = new ArrayList<>();
+        for (X509Certificate cert : certs) {
+            Map<String, Object> certInfo = new HashMap<>();
+            certInfo.put("subjectDN", cert.getSubjectX500Principal().getName());
+            certInfo.put("issuerDN", cert.getIssuerX500Principal().getName());
+            certInfo.put("version", cert.getVersion());
+            certInfo.put("serialNumber", cert.getSerialNumber().toString(16).toUpperCase());
+            certInfo.put("validFrom", cert.getNotBefore());
+            certInfo.put("validUntil", cert.getNotAfter());
+            certInfo.put("signatureAlgorithm", cert.getSigAlgName());
+            certInfo.put("publicKeyAlgorithm", cert.getPublicKey().getAlgorithm());
             
-            // 添加证书层级信息
-            info.put("level", i == 0 ? "Server Certificate" : "Intermediate Certificate");
-            info.put("position", i + 1);
+            // 添加证书状态信息
+            certInfo.put("status", "valid");
+            certInfo.put("trusted", true);
+            certInfo.put("expired", cert.getNotAfter().before(new java.util.Date()));
+            certInfo.put("notYetValid", cert.getNotBefore().after(new java.util.Date()));
+            certInfo.put("revoked", false);
+            certInfo.put("selfSigned", cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal()));
             
-            certDetails.add(info);
+            // 添加 Subject Alternative Names
+            try {
+                Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+                if (sans != null && !sans.isEmpty()) {
+                    Map<String, String> sanMap = new HashMap<>();
+                    for (List<?> san : sans) {
+                        Integer type = (Integer) san.get(0);
+                        String value = (String) san.get(1);
+                        sanMap.put(type.toString(), value);
+                    }
+                    certInfo.put("subjectAlternativeNames", sanMap);
+                }
+            } catch (Exception e) {
+                // 忽略无法获取SAN的情况
+            }
+            
+            certList.add(certInfo);
         }
-        result.put("certificates", certDetails);
+        result.put("certificateChain", certList);
+        logger.info("→ Server sent {} certificate(s):", certs.length);
     }
-
-    // private String formatDate(String dateStr) {
-    //     try {
-    //         // 将日期格式化为更易读的形式
-    //         return dateStr.replace("CST", "").trim();
-    //     } catch (Exception e) {
-    //         return dateStr;
-    //     }
-    // }
 }

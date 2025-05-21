@@ -10,14 +10,13 @@ import java.io.File;
 import java.net.URI;
 import java.net.URL;
 import java.security.KeyPair;
-import java.security.cert.X509Certificate;
+// import java.security.cert.X509Certificate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class SSLClientTest {
     private SSLClient client;
     private KeyPair keyPair;
-    private X509Certificate certificate;
 
     @TempDir
     File tempDir;
@@ -28,7 +27,7 @@ class SSLClientTest {
         
         // 生成测试证书
         keyPair = TestCertificateGenerator.generateKeyPair();
-        certificate = TestCertificateGenerator.generateCertificate(
+        TestCertificateGenerator.generateCertificate(
             "CN=test.example.com, O=Test Organization, C=US",
             "CN=Test CA, O=Test Organization, C=US",
             keyPair,
