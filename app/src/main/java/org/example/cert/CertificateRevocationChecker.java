@@ -28,6 +28,10 @@ public class CertificateRevocationChecker {
     }
 
     public void checkRevocation(X509Certificate cert) throws CertificateException {
+        if (cert == null) {
+            throw new NullPointerException("Certificate cannot be null");
+        }
+
         if (!checkOCSP && !checkCRL) {
             return;
         }
