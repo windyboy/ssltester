@@ -28,10 +28,12 @@ public class CertificateValidator {
 
     private final File keystoreFile;
     private final String keystorePassword;
+    private final CertificateRevocationChecker revocationChecker;
 
     public CertificateValidator(File keystoreFile, String keystorePassword) {
         this.keystoreFile = keystoreFile;
         this.keystorePassword = keystorePassword;
+        this.revocationChecker = new CertificateRevocationChecker(true, true);
     }
 
     public X509Certificate[] validateCertificateChain(Certificate[] certs) throws CertificateException {
@@ -47,6 +49,12 @@ public class CertificateValidator {
 
         tm.checkServerTrusted(x509Certs, auth);
         logger.info("→ Certificate chain trusted");
+
+        // Check revocation status for each certificate in the chain
+        for (X509Certificate cert : x509Certs) {
+            revocationChecker.checkRevocation(cert);
+        }
+
         return x509Certs;
     }
 
@@ -136,42 +144,42 @@ public class CertificateValidator {
                 return false;
             }
 
-            System.out.println("[DEBUG] 输入主机名: " + hostname);
+            logger.debug("Verifying hostname: {}", hostname);
 
             // 标准化主机名 (处理国际化域名)
             String normalizedHostname = normalizeHostname(hostname);
-            System.out.println("[DEBUG] 标准化后主机名: " + normalizedHostname);
+            logger.debug("Normalized hostname: {}", normalizedHostname);
 
             // 检查主机名是否为IP地址
             boolean isIpAddress = isIpAddress(normalizedHostname);
-            System.out.println("[DEBUG] 是否IP地址: " + isIpAddress);
+            logger.debug("Is IP address: {}", isIpAddress);
 
             // 首先检查SubjectAlternativeNames
             var sans = cert.getSubjectAlternativeNames();
             if (sans != null) {
-                System.out.println("[DEBUG] 证书包含 " + sans.size() + " 个SAN条目");
+                logger.debug("Certificate contains {} SAN entries", sans.size());
                 for (var san : sans) {
                     Integer type = (Integer) san.get(0);
                     String value = (String) san.get(1);
-                    System.out.println("[DEBUG] SAN条目: 类型=" + type + ", 值=" + value);
+                    logger.debug("SAN entry: type={}, value={}", type, value);
 
                     // DNS类型 = 2
                     if (type == 2 && !isIpAddress) {
                         String normalizedValue = normalizeHostname(value);
-                        System.out.println("[DEBUG] 标准化SAN值: " + normalizedValue);
-                        System.out.println("[DEBUG] 比较: " + normalizedValue + " vs " + normalizedHostname);
+                        logger.debug("Normalized SAN value: {}", normalizedValue);
+                        logger.debug("Comparing: {} vs {}", normalizedValue, normalizedHostname);
 
                         if (normalizedValue.equals(normalizedHostname)) {
-                            System.out.println("[DEBUG] 直接匹配成功!");
+                            logger.debug("Direct match found!");
                             logger.debug("Hostname {} matched with SAN DNS: {}", normalizedHostname, value);
                             return true;
                         } else if (matchesHostname(normalizedValue, normalizedHostname)) {
-                            System.out.println("[DEBUG] 通配符匹配成功!");
+                            logger.debug("Wildcard match found!");
                             logger.debug("Hostname {} matched with SAN DNS (wildcard): {}", normalizedHostname, value);
                             return true;
                         }
                     }
-                    // IP类��� = 7
+                    // IP类型 = 7
                     else if (type == 7 && isIpAddress) {
                         if (value.equals(normalizedHostname)) {
                             logger.debug("IP address {} matched with SAN IP: {}", normalizedHostname, value);
@@ -227,12 +235,12 @@ public class CertificateValidator {
 
             // 如果转换结果不同，则使用ASCII格式
             if (!asciiForm.equals(hostname)) {
-                System.out.println("[DEBUG] IDN转换: " + hostname + " -> " + asciiForm);
+                logger.debug("IDN conversion: {} -> {}", hostname, asciiForm);
             }
             return asciiForm;
 
         } catch (Exception e) {
-            System.out.println("[ERROR] IDN转换失败: " + hostname + ", 错误: " + e.getMessage());
+            logger.error("IDN conversion failed: {}, error: {}", hostname, e.getMessage());
             // 如果转换失败，返回原始域名
             return hostname;
         }

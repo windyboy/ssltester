@@ -1,7 +1,9 @@
 package org.example;
 
 import org.example.cert.CertificateValidator;
+import org.example.cert.ClientCertificateManager;
 import org.example.config.SSLTestConfig;
+import org.example.config.SSLTestConfigFile;
 import org.example.exception.SSLTestException;
 import org.example.output.ResultFormatter;
 import org.slf4j.Logger;
@@ -11,6 +13,7 @@ import picocli.CommandLine.Command;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSession;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.security.cert.Certificate;
@@ -19,6 +22,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+
+import javax.net.ssl.SSLContext;
 
 /**
  * SSL测试工具 - 用于验证HTTPS连接，检查证书链和主机名验证
@@ -41,6 +46,7 @@ public class SSLTest implements Callable<Integer> {
     private final SSLTestConfig config;
     private final CertificateValidator certValidator;
     private final ResultFormatter resultFormatter;
+    private final ClientCertificateManager clientCertManager;
     private final Map<String, Object> result = new HashMap<>();
 
     // No-arg constructor for CLI use
@@ -53,6 +59,7 @@ public class SSLTest implements Callable<Integer> {
         this.config = config;
         this.certValidator = new CertificateValidator(config.getKeystoreFile(), config.getKeystorePassword());
         this.resultFormatter = new ResultFormatter(config);
+        this.clientCertManager = new ClientCertificateManager(config);
     }
 
     public static void main(String... args) {
@@ -65,6 +72,16 @@ public class SSLTest implements Callable<Integer> {
         try {
             if (config.getUrl() == null || config.getUrl().trim().isEmpty()) {
                 throw new SSLTestException("URL is required", EXIT_INVALID_ARGS);
+            }
+
+            // Load configuration from file if specified
+            if (config.getConfigFile() != null) {
+                try {
+                    Map<String, Object> fileConfig = SSLTestConfigFile.loadConfig(config.getConfigFile());
+                    SSLTestConfigFile.applyConfig(fileConfig, config);
+                } catch (IOException e) {
+                    throw new SSLTestException("Failed to load configuration file: " + e.getMessage(), EXIT_INVALID_ARGS, e);
+                }
             }
             
             URL parsedUrl = parseAndValidateUrl(config.getUrl());
@@ -139,6 +156,18 @@ public class SSLTest implements Callable<Integer> {
         conn.setConnectTimeout(config.getConnectionTimeout());
         conn.setReadTimeout(config.getReadTimeout());
         conn.setInstanceFollowRedirects(config.isFollowRedirects());
+
+        // Set up client certificate if configured
+        try {
+            SSLContext sslContext = clientCertManager.createSSLContext();
+            if (sslContext != null) {
+                conn.setSSLSocketFactory(sslContext.getSocketFactory());
+                logger.info("Using client certificate for authentication");
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to set up client certificate: {}", e.getMessage());
+        }
+
         conn.connect();
         return conn;
     }
