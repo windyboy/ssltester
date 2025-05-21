@@ -45,6 +45,9 @@ public class SSLTestConfig {
     @Option(names = {"-v", "--verbose"}, description = "显示详细输出")
     private boolean verbose = false;
 
+    @Option(names = {"--log-cert-details"}, description = "在日志中显示证书详细信息", defaultValue = "true")
+    private boolean logCertDetails = true;
+
     @Option(names = {"-c", "--config"}, description = "配置文件路径 (YAML/JSON)")
     private File configFile;
 
@@ -68,6 +71,7 @@ public class SSLTestConfig {
     public File getOutputFile() { return outputFile; }
     public OutputFormat getFormat() { return format; }
     public boolean isVerbose() { return verbose; }
+    public boolean isLogCertDetails() { return logCertDetails; }
     public File getConfigFile() { return configFile; }
     public boolean isCheckOCSP() { return checkOCSP; }
     public boolean isCheckCRL() { return checkCRL; }
@@ -86,6 +90,7 @@ public class SSLTestConfig {
     public void setOutputFile(File outputFile) { this.outputFile = outputFile; }
     public void setFormat(OutputFormat format) { this.format = format; }
     public void setVerbose(boolean verbose) { this.verbose = verbose; }
+    public void setLogCertDetails(boolean logCertDetails) { this.logCertDetails = logCertDetails; }
     public void setConfigFile(File configFile) { this.configFile = configFile; }
     public void setCheckOCSP(boolean checkOCSP) { this.checkOCSP = checkOCSP; }
     public void setCheckCRL(boolean checkCRL) { this.checkCRL = checkCRL; }
@@ -97,4 +102,5 @@ public class SSLTestConfig {
     public enum CertificateFormat {
         PEM, DER
     }
-} 
+}
+

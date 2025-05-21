@@ -198,9 +198,7 @@ public class SSLTest implements Callable<Integer> {
         @SuppressWarnings("unchecked")
         Map<String, Object>[] certDetails = (Map<String, Object>[]) new Map[certs.length];
         for (int i = 0; i < certs.length; i++) {
-            logger.info("Certificate [{}]", (i + 1));
             certDetails[i] = certValidator.getCertificateInfo(certs[i]);
-            logger.info("");
         }
         result.put("certificates", certDetails);
     }

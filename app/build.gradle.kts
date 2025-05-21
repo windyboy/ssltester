@@ -49,8 +49,16 @@ testing {
 // Apply a specific Java toolchain to ease working on different environments.
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.addAll(listOf("--enable-preview"))
+}
+
+tasks.withType<JavaExec> {
+    jvmArgs("--enable-preview")
 }
 
 // application {

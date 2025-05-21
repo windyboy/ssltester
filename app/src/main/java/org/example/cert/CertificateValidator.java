@@ -28,12 +28,15 @@ public class CertificateValidator {
 
     private final File keystoreFile;
     private final String keystorePassword;
-    private final CertificateRevocationChecker revocationChecker;
+    private final CertificateRevocationChecker revocationChecker = new CertificateRevocationChecker(true, false);
 
     public CertificateValidator(File keystoreFile, String keystorePassword) {
+        this(keystoreFile, keystorePassword, true);
+    }
+
+    public CertificateValidator(File keystoreFile, String keystorePassword, boolean logCertificateDetails) {
         this.keystoreFile = keystoreFile;
         this.keystorePassword = keystorePassword;
-        this.revocationChecker = new CertificateRevocationChecker(true, true);
     }
 
     public X509Certificate[] validateCertificateChain(Certificate[] certs) throws CertificateException {
@@ -101,15 +104,6 @@ public class CertificateValidator {
         String sigAlg = cert.getSigAlgName();
         String pubKeyAlg = cert.getPublicKey().getAlgorithm();
 
-        logger.info("{} Subject DN    : {}", INDENT, subjectDN);
-        logger.info("{} Issuer DN     : {}", INDENT, issuerDN);
-        logger.info("{} Version       : {}", INDENT, version);
-        logger.info("{} Serial Number : {}", INDENT, serialNumber);
-        logger.info("{} Valid From    : {}", INDENT, validFrom);
-        logger.info("{} Valid Until   : {}", INDENT, validUntil);
-        logger.info("{} Sig. Algorithm: {}", INDENT, sigAlg);
-        logger.info("{} PubKey Alg    : {}", INDENT, pubKeyAlg);
-
         certInfo.put("subjectDN", subjectDN);
         certInfo.put("issuerDN", issuerDN);
         certInfo.put("version", version);
@@ -126,12 +120,10 @@ public class CertificateValidator {
     private void addSubjectAlternativeNames(X509Certificate cert, Map<String, Object> certInfo) throws Exception {
         var sans = cert.getSubjectAlternativeNames();
         if (sans != null) {
-            logger.info("{} SubjectAltNames:", INDENT);
             Map<String, String> sanMap = new HashMap<>();
             for (var san : sans) {
                 Integer type = (Integer) san.get(0);
                 String value = (String) san.get(1);
-                logger.info("{}   • {}: {}", INDENT, type, value);
                 sanMap.put(type.toString(), value);
             }
             certInfo.put("subjectAlternativeNames", sanMap);
