@@ -21,6 +21,7 @@ import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.List;
@@ -148,7 +149,7 @@ public class SSLTest implements Callable<Integer> {
 
             Certificate[] certs = conn.getServerCertificates();
             X509Certificate[] x509Certs = certValidator.validateCertificateChain(certs);
-            validateHostname( url, x509Certs[0]);
+            validateHostname(url, x509Certs[0]);
             processCertificates(x509Certs);
 
             logger.info("✅ SSL handshake and HTTP request succeeded.");
@@ -254,28 +255,5 @@ public class SSLTest implements Callable<Integer> {
         }
         result.put("certificateChain", certList);
         logger.info("→ Server sent {} certificate(s):", certs.length);
-        result.put("certificateCount", certs.length);
-        
-        List<Map<String, Object>> certDetails = new ArrayList<>(certs.length);
-        for (int i = 0; i < certs.length; i++) {
-            X509Certificate cert = certs[i];
-            Map<String, Object> info = certValidator.getCertificateInfo(cert);
-            
-            // 添加证书层级信息
-            info.put("level", i == 0 ? "Server Certificate" : "Intermediate Certificate");
-            info.put("position", i + 1);
-            
-            certDetails.add(info);
-        }
-        result.put("certificates", certDetails);
     }
-
-    // private String formatDate(String dateStr) {
-    //     try {
-    //         // 将日期格式化为更易读的形式
-    //         return dateStr.replace("CST", "").trim();
-    //     } catch (Exception e) {
-    //         return dateStr;
-    //     }
-    // }
 }

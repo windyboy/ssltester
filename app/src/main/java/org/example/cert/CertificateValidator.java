@@ -29,19 +29,34 @@ public class CertificateValidator {
     private static final Logger logger = LoggerFactory.getLogger(CertificateValidator.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
             .withZone(ZoneId.systemDefault());
-    // private static final String INDENT = "   ";
+    private static final Map<String, Boolean> CERTIFICATE_CACHE = new ConcurrentHashMap<>();
 
     private final File keystoreFile;
     private final String keystorePassword;
     private final CertificateRevocationChecker revocationChecker = new CertificateRevocationChecker(true, false);
 
     public CertificateValidator(File keystoreFile, String keystorePassword) {
-        this(keystoreFile, keystorePassword, true);
-    }
-
-    public CertificateValidator(File keystoreFile, String keystorePassword, boolean logCertificateDetails) {
         this.keystoreFile = keystoreFile;
         this.keystorePassword = keystorePassword;
+    }
+
+    /**
+     * 检查系统时间是否可能不准确
+     * 主要检查年份是否在合理范围内，因为证书验证对时间非常敏感
+     */
+    public void checkSystemTime() {
+        try {
+            Calendar cal = Calendar.getInstance();
+            int currentYear = cal.get(Calendar.YEAR);
+            
+            // 检查年份
+            if (currentYear < 2023 || currentYear > 2024) {
+                logger.warn("⚠️ 系统时间可能不准确！当前年份: {}，这会导致证书验证问题", currentYear);
+                logger.warn("请同步您的系统时间以确保证书验证正确");
+            }
+        } catch (Exception e) {
+            logger.error("检查系统时间时发生错误", e);
+        }
     }
 
     public X509Certificate[] validateCertificateChain(Certificate[] certs) throws CertificateException {
@@ -72,15 +87,25 @@ public class CertificateValidator {
         String sigAlg = x509Certs[0].getSigAlgName();
         String auth = determineAuthType(sigAlg);
 
-        tm.checkServerTrusted(x509Certs, auth);
-        logger.info("→ Certificate chain trusted");
+        try {
+            tm.checkServerTrusted(x509Certs, auth);
+            logger.info("→ Certificate chain trusted");
+            CERTIFICATE_CACHE.put(certKey, true);
 
-        // Check revocation status for each certificate in the chain
-        for (X509Certificate cert : x509Certs) {
-            revocationChecker.checkRevocation(cert);
+            // Check revocation status for each certificate in the chain
+            for (X509Certificate cert : x509Certs) {
+                revocationChecker.checkRevocation(cert);
+            }
+
+            return x509Certs;
+        } catch (CertificateException e) {
+            CERTIFICATE_CACHE.put(certKey, false);
+            throw e;
         }
+    }
 
-        return x509Certs;
+    private String getCertificateKey(X509Certificate cert) {
+        return cert.getSerialNumber().toString(16) + "_" + cert.getIssuerX500Principal().getName();
     }
 
     private TrustManagerFactory initializeTrustManagerFactory() throws CertificateException {
