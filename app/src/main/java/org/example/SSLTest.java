@@ -12,18 +12,17 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Callable;
-
-import javax.net.ssl.SSLContext;
 
 /**
  * SSL测试工具 - 用于验证HTTPS连接，检查证书链和主机名验证
@@ -174,11 +173,6 @@ public class SSLTest implements Callable<Integer> {
 
     private void validateHostname(HttpsURLConnection conn, URL url, X509Certificate cert) throws SSLTestException {
         try {
-            Optional<SSLSession> session = conn.getSSLSession();
-            if (session.isEmpty()) {
-                throw new SSLTestException("SSL session 不可用", EXIT_SSL_HANDSHAKE_ERROR);
-            }
-
             String hostname = url.getHost();
             if (!certValidator.verifyHostname(cert, hostname)) {
                 throw new SSLTestException("Hostname verification failed for host " + hostname,
@@ -195,11 +189,26 @@ public class SSLTest implements Callable<Integer> {
         logger.info("→ Server sent {} certificate(s):", certs.length);
         result.put("certificateCount", certs.length);
         
-        @SuppressWarnings("unchecked")
-        Map<String, Object>[] certDetails = (Map<String, Object>[]) new Map[certs.length];
+        List<Map<String, Object>> certDetails = new ArrayList<>(certs.length);
         for (int i = 0; i < certs.length; i++) {
-            certDetails[i] = certValidator.getCertificateInfo(certs[i]);
+            X509Certificate cert = certs[i];
+            Map<String, Object> info = certValidator.getCertificateInfo(cert);
+            
+            // 添加证书层级信息
+            info.put("level", i == 0 ? "Server Certificate" : "Intermediate Certificate");
+            info.put("position", i + 1);
+            
+            certDetails.add(info);
         }
         result.put("certificates", certDetails);
+    }
+
+    private String formatDate(String dateStr) {
+        try {
+            // 将日期格式化为更易读的形式
+            return dateStr.replace("CST", "").trim();
+        } catch (Exception e) {
+            return dateStr;
+        }
     }
 }
