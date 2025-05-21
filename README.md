@@ -1,153 +1,256 @@
 # SSL验证工具
 
-## 安装指南
-
-### 系统要求
-- Python 3.8+
-- OpenSSL 1.1.1+
-- 64位操作系统
-
-### 快速安装
-```bash
-# 使用pip安装
-pip install ssl-validator
-
-# 或从源码安装
-git clone https://github.com/example/ssl-validator.git
-cd ssl-validator
-pip install -e .
-```
-
-## 系统时间验证
-
-本工具会自动检查您的系统时间并在发现异常时发出警告。准确的系统时间对于证书验证至关重要，不准确的系统时间可能导致:
-
-- 有效证书被误判为已过期或未生效
-- 过期证书被误判为有效
-- 证书有效期显示异常（如显示未来日期）
-
-### 同步系统时间
-
-如果您看到关于证书日期异常的警告，请使用以下方法同步系统时间：
-
-- **Windows**: 设置 > 时间和语言 > 日期和时间 > 自动设置时间
-- **macOS**: 系统设置 > 日期与时间 > 自动设置日期与时间
-- **Linux**: `sudo ntpdate pool.ntp.org`
+一款功能强大的SSL证书验证和HTTPS连接测试工具，用于检查服务器SSL/TLS配置、证书链、主机名验证等。
 
 ## 主要功能
 
-### 1. 证书有效性检查
-- 验证证书是否由受信任的证书颁发机构(CA)签发
-- 检查证书链完整性
-- 验证证书是否已被吊销(CRL/OCSP)
+- HTTPS连接验证
+- SSL/TLS握手测试
+- 证书链验证
+- 主机名验证
+- 客户端证书支持
+- OCSP和CRL检查
+- 详细的证书信息展示
+- 多种输出格式支持(TEXT, JSON, YAML)
 
-### 2. 证书信息查看
-- 查看证书详细信息（颁发者、主题、有效期等）
-- 导出证书信息为多种格式
+## 系统要求
 
-### 3. 安全配置分析
-- TLS/SSL协议版本检测
-- 密码套件强度评估
-- 已知漏洞检测(如BEAST, POODLE, Heartbleed)
+- Java 11或更高版本
+- 支持的操作系统: Windows, macOS, Linux
 
-### 4. 支持的证书格式
-- X.509 证书 (.crt, .pem, .cer)
-- PKCS#12 证书 (.pfx, .p12)
-- Java KeyStore (.jks)
-- 自签名证书验证
+## 安装
 
-### 5. 批量检测
-- 多域名并行检测
-- 批量证书导入与分析
-- CSV/JSON报告导出
+### 使用预编译的二进制文件
 
-## 使用方法
-
-### 命令行使用
+从[发布页面](https://github.com/example/ssltest/releases)下载最新版本：
 
 ```bash
-# 检查网站证书
-sslcheck example.com
+# 解压下载的文件
+unzip ssltest-1.0.0.zip
 
-# 指定端口
-sslcheck example.com:443
+# 赋予执行权限
+chmod +x ssltest/bin/ssltest
 
-# 详细模式
-sslcheck -v example.com
-
-# 导出证书
-sslcheck --export cert.pem example.com
+# 运行程序
+./ssltest/bin/ssltest https://example.com
 ```
 
-### 高级用法
+### 从源码构建
 
 ```bash
-# 自定义信任根证书
-sslcheck --ca-file custom-ca.pem example.com
+# 克隆项目
+git clone https://github.com/example/ssltest.git
+cd ssltest
 
-# 批量检查（从文件）
-sslcheck --batch domains.txt --output report.json
+# 使用Maven构建
+./mvnw clean package
 
-# 完整证书链验证
-sslcheck --full-chain example.com
-
-# 证书透明度日志检查
-sslcheck --ct-check example.com
+# 运行构建后的程序
+java -jar target/ssltest-1.0.0.jar https://example.com
 ```
 
-### GUI模式
+## 基础用法
 
-1. 打开应用程序
-2. 在地址栏输入要检查的域名
-3. 点击"验证"按钮
-4. 查看结果报告
+```bash
+# 基本SSL测试
+ssltest https://example.com
 
-## 配置文件
+# 指定超时时间（毫秒）
+ssltest https://example.com -t 5000 -r 5000
 
-可以通过配置文件定制工具行为:
+# 启用重定向跟踪
+ssltest https://example.com -f
+```
 
+## 高级用法
+
+### 自定义信任库
+
+```bash
+# 使用自定义信任库
+ssltest https://example.com -k mycerts.jks -p 
+# 会提示输入信任库密码
+```
+
+### 客户端证书认证
+
+```bash
+# 使用客户端证书和私钥进行双向TLS认证
+ssltest https://example.com --client-cert client.pem --client-key client_key.pem
+
+# 指定客户端证书格式
+ssltest https://example.com --client-cert client.der --client-key client_key.der --client-cert-format DER
+
+# 带密码的私钥
+ssltest https://example.com --client-cert client.pem --client-key client_key.pem --client-key-password
+# 会提示输入私钥密码
+```
+
+### 输出控制
+
+```bash
+# 指定输出文件
+ssltest https://example.com -o results.txt
+
+# JSON 格式输出
+ssltest https://example.com --format JSON
+
+# YAML 格式输出
+ssltest https://example.com --format YAML
+
+# 详细输出模式
+ssltest https://example.com -v
+```
+
+### 证书验证选项
+
+```bash
+# 禁用OCSP检查
+ssltest https://example.com --check-ocsp=false
+
+# 禁用CRL检查
+ssltest https://example.com --check-crl=false
+
+# 禁用证书详细信息日志
+ssltest https://example.com --log-cert-details=false
+```
+
+### 配置文件
+
+可以将常用配置保存在YAML或JSON配置文件中：
+
+```bash
+# 使用配置文件
+ssltest https://example.com -c myconfig.yml
+```
+
+配置文件示例 `myconfig.yml`:
 ```yaml
-# ~/.sslcheck.yaml
-output:
-  format: json
-  colored: true
-  
-validation:
-  check_revocation: true
-  min_key_size: 2048
-  
-connections:
-  timeout: 5
-  retries: 3
+connectionTimeout: 10000
+readTimeout: 10000
+followRedirects: true
+keystoreFile: "mycerts.jks"
+keystorePassword: "mysecret"
+clientCertFile: "client.pem"
+clientKeyFile: "client_key.pem"
+clientKeyPassword: "keypass"
+clientCertFormat: "PEM"
+outputFile: "results.json"
+format: "JSON"
+verbose: true
+checkOCSP: true
+checkCRL: true
+logCertDetails: true
+```
+
+## 命令行参数
+
+| 参数 | 描述 | 默认值 |
+|------|------|--------|
+| `<url>` | 要测试的HTTPS URL (位置参数) | 必填 |
+| `-t, --timeout` | 连接超时（毫秒） | 5000 |
+| `-r, --read-timeout` | 读取超时（毫秒） | 5000 |
+| `-f, --follow-redirects` | 跟踪HTTP重定向 | false |
+| `-k, --keystore` | 信任库文件路径 | 系统默认 |
+| `-p, --keystore-password` | 信任库密码 (交互式) | - |
+| `--client-cert` | 客户端证书文件路径 | - |
+| `--client-key` | 客户端私钥文件路径 | - |
+| `--client-key-password` | 客户端私钥密码 (交互式) | - |
+| `--client-cert-format` | 客户端证书格式 (PEM, DER) | PEM |
+| `-o, --output` | 输出文件路径 | - |
+| `--format` | 输出格式 (TEXT, JSON, YAML) | TEXT |
+| `-v, --verbose` | 显示详细输出 | false |
+| `--log-cert-details` | 在日志中显示证书详细信息 | true |
+| `-c, --config` | 配置文件路径 (YAML/JSON) | - |
+| `--check-ocsp` | 是否检查OCSP | true |
+| `--check-crl` | 是否检查CRL | true |
+
+## 退出码
+
+| 代码 | 描述 |
+|------|------|
+| 0 | 成功 |
+| 1 | 无效参数 |
+| 2 | SSL握手错误 |
+| 3 | 连接错误 |
+| 4 | 证书验证错误 |
+| 5 | 主机名验证错误 |
+| 6 | 配置错误 |
+| 99 | 未预期的错误 |
+
+## 输出示例
+
+### 文本输出 (默认)
+
+```
+SSL Test Results for https://example.com
+==================================================
+连接状态: 成功
+HTTP状态码: 200
+协商的密码套件: TLS_AES_256_GCM_SHA384
+协议版本: TLSv1.3
+主机名验证: 通过
+OCSP检查: 通过
+CRL检查: 通过
+
+服务器证书链:
+[1] Subject: CN=example.com, O=Example Inc, C=US
+    Issuer: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
+    有效期: 2023-01-15 至 2024-01-15
+    SHA-256: 3A:40:F5:9E:84:2E:...
+
+[2] Subject: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
+    Issuer: CN=DigiCert Global Root CA, O=DigiCert Inc, OU=www.digicert.com, C=US
+    有效期: 2021-04-14 至 2031-04-13
+    SHA-256: 0A:35:48:7C:0C:3C:...
+```
+
+### JSON输出
+
+```json
+{
+  "url": "https://example.com",
+  "connectionStatus": "SUCCESS",
+  "httpStatus": 200,
+  "cipherSuite": "TLS_AES_256_GCM_SHA384",
+  "tlsVersion": "TLSv1.3",
+  "hostnameVerification": "PASSED",
+  "ocspCheck": "PASSED",
+  "crlCheck": "PASSED",
+  "certificateChain": [
+    {
+      "position": 1,
+      "subject": "CN=example.com, O=Example Inc, C=US",
+      "issuer": "CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US",
+      "validFrom": "2023-01-15T00:00:00Z",
+      "validTo": "2024-01-15T23:59:59Z",
+      "sha256": "3A:40:F5:9E:84:2E:..."
+    },
+    {
+      "position": 2,
+      "subject": "CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US",
+      "issuer": "CN=DigiCert Global Root CA, O=DigiCert Inc, OU=www.digicert.com, C=US",
+      "validFrom": "2021-04-14T00:00:00Z",
+      "validTo": "2031-04-13T23:59:59Z",
+      "sha256": "0A:35:48:7C:0C:3C:..."
+    }
+  ]
+}
 ```
 
 ## 常见问题解答
 
-### Q: 为什么工具显示证书不受信任，但浏览器显示安全？
-A: 这可能是因为本工具和浏览器的受信任CA列表不同，或者浏览器有特殊例外规则。
+### Q: 如何测试需要客户端证书的服务器？
+A: 使用 `--client-cert` 和 `--client-key` 参数指定客户端证书和私钥。如果私钥有密码保护，可以使用 `--client-key-password` 参数。
 
-### Q: 如何解决"证书链不完整"警告？
-A: 服务器需要配置完整的证书链，包括中间证书。
+### Q: 如何处理自签名证书或内部CA签发的证书？
+A: 可以使用 `-k, --keystore` 参数指定包含这些证书的信任库。
 
-### Q: 工具报告"证书已吊销"，如何处理？
-A: 请联系证书颁发机构获取新证书，原证书可能因安全问题已被吊销。
+### Q: OCSP或CRL检查花费太长时间，如何跳过？
+A: 使用 `--check-ocsp=false` 和 `--check-crl=false` 参数禁用这些检查。
 
-### Q: 工具支持代理服务器吗？
-A: 是的，可以通过 `--proxy` 参数或环境变量 `HTTPS_PROXY` 设置代理。
-
-### Q: 如何在内网环境使用此工具？
-A: 可以使用 `--offline` 模式，手动提供证书文件进行验证。
-
-## 性能优化建议
-
-对于大规模部署，推荐以下配置:
-- 使用 `--workers N` 参数增加并行处理能力
-- 启用结果缓存 `--cache-dir /path/to/cache`
-- 对于频繁检查，使用 `--quick` 模式跳过耗时验证
-
-## 反馈与支持
-
-如有问题或建议，请提交issue或发送邮件到support@sslchecker.example.com.
+### Q: 如何将检测结果保存到文件？
+A: 使用 `-o, --output` 参数指定输出文件路径，并可以用 `--format` 选择合适的输出格式。
 
 ## 许可证
 
