@@ -29,7 +29,7 @@ public class CertificateValidator {
     private static final Logger logger = LoggerFactory.getLogger(CertificateValidator.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
             .withZone(ZoneId.systemDefault());
-    private static final Map<String, Boolean> CERTIFICATE_CACHE = new ConcurrentHashMap<>();
+    // private static final String INDENT = "   ";
 
     private final File keystoreFile;
     private final String keystorePassword;

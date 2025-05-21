@@ -148,7 +148,7 @@ public class SSLTest implements Callable<Integer> {
 
             Certificate[] certs = conn.getServerCertificates();
             X509Certificate[] x509Certs = certValidator.validateCertificateChain(certs);
-            validateHostname(url, x509Certs[0]);
+            validateHostname( url, x509Certs[0]);
             processCertificates(x509Certs);
 
             logger.info("✅ SSL handshake and HTTP request succeeded.");
@@ -198,6 +198,7 @@ public class SSLTest implements Callable<Integer> {
         return conn;
     }
 
+    private void validateHostname( URL url, X509Certificate cert) throws SSLTestException {
     private void validateHostname( URL url, X509Certificate cert) throws SSLTestException {
         try {
             String hostname = url.getHost();
@@ -269,12 +270,12 @@ public class SSLTest implements Callable<Integer> {
         result.put("certificates", certDetails);
     }
 
-    private String formatDate(String dateStr) {
-        try {
-            // 将日期格式化为更易读的形式
-            return dateStr.replace("CST", "").trim();
-        } catch (Exception e) {
-            return dateStr;
-        }
-    }
+    // private String formatDate(String dateStr) {
+    //     try {
+    //         // 将日期格式化为更易读的形式
+    //         return dateStr.replace("CST", "").trim();
+    //     } catch (Exception e) {
+    //         return dateStr;
+    //     }
+    // }
 }
