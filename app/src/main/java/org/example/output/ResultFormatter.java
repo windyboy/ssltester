@@ -165,31 +165,77 @@ public class ResultFormatter {
 
     private String formatSimpleText(Map<String, Object> result) {
         StringBuilder sb = new StringBuilder();
-        
-        // 添加基本连接信息
-        if (result.containsKey("status")) {
-            sb.append("连接状态: ").append(result.get("status")).append("\n");
-        }
-        if (result.containsKey("httpStatus")) {
-            sb.append("HTTP状态码: ").append(result.get("httpStatus")).append("\n");
-        }
-        if (result.containsKey("cipherSuite")) {
-            sb.append("协商的密码套件: ").append(result.get("cipherSuite")).append("\n");
-        }
-        if (result.containsKey("hostnameVerified")) {
-            sb.append("主机名验证: ").append(Boolean.TRUE.equals(result.get("hostnameVerified")) ? "通过" : "失败").append("\n");
-        }
+        for (Map.Entry<String, Object> entry : result.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
 
-        // 处理错误信息
-        if (result.containsKey("error")) {
-            sb.append("\n错误信息:\n");
-            sb.append(result.get("error")).append("\n");
-            if (result.containsKey("errorCause")) {
-                sb.append("原因: ").append(result.get("errorCause")).append("\n");
+            if (value instanceof Map[]) {
+                // 处理 Map 数组（例如证书信息）
+                sb.append(key).append(":\n");
+                Map<?, ?>[] mapArray = (Map<?, ?>[]) value;
+                for (int i = 0; i < mapArray.length; i++) {
+                    sb.append("  [").append(i + 1).append("]:\n");
+                    formatMapValue(sb, mapArray[i], 4);
+                }
+            } else if (value instanceof Map) {
+                // 处理单个 Map
+                sb.append(key).append(":\n");
+                formatMapValue(sb, (Map<?, ?>) value, 2);
+            } else if (value instanceof Object[]) {
+                // 处理其他类型的数组
+                sb.append(key).append(": ");
+                Object[] array = (Object[]) value;
+                if (array.length > 0) {
+                    sb.append("[");
+                    for (int i = 0; i < array.length; i++) {
+                        sb.append(array[i]);
+                        if (i < array.length - 1) {
+                            sb.append(", ");
+                        }
+                    }
+                    sb.append("]");
+                } else {
+                    sb.append("[]");
+                }
+                sb.append("\n");
+            } else {
+                // 处理简单值
+                sb.append(key).append(": ").append(value).append("\n");
             }
         }
-
         return sb.toString();
+    }
+
+    /**
+     * 格式化 Map 内容，带缩进
+     */
+    private void formatMapValue(StringBuilder sb, Map<?, ?> map, int indent) {
+        String indentStr = " ".repeat(indent);
+        for (Map.Entry<?, ?> subEntry : map.entrySet()) {
+            Object subValue = subEntry.getValue();
+            if (subValue instanceof Map) {
+                sb.append(indentStr).append(subEntry.getKey()).append(":\n");
+                formatMapValue(sb, (Map<?, ?>) subValue, indent + 2);
+            } else if (subValue instanceof Object[]) {
+                sb.append(indentStr).append(subEntry.getKey()).append(": ");
+                Object[] array = (Object[]) subValue;
+                if (array.length > 0) {
+                    sb.append("[");
+                    for (int i = 0; i < array.length; i++) {
+                        sb.append(array[i]);
+                        if (i < array.length - 1) {
+                            sb.append(", ");
+                        }
+                    }
+                    sb.append("]");
+                } else {
+                    sb.append("[]");
+                }
+                sb.append("\n");
+            } else {
+                sb.append(indentStr).append(subEntry.getKey()).append(": ").append(subValue).append("\n");
+            }
+        }
     }
 
     public void logError(String message, Throwable cause, int exitCode) {
@@ -198,5 +244,8 @@ public class ResultFormatter {
             logger.error("详细错误信息:", cause);
         }
     }
+}
+
+
 }
 

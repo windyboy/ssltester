@@ -6,15 +6,17 @@ import java.util.Collection;
 
 public class SSLConnectionResult {
     private final boolean success;
+    private final String message;
     private final List<X509Certificate> certificateChain;
     private final Exception error;
     private final String cipherSuite;
     private final int httpStatus;
     private final boolean hostnameVerified;
 
-    public SSLConnectionResult(boolean success, List<X509Certificate> certificateChain, 
+    public SSLConnectionResult(boolean success, String message, List<X509Certificate> certificateChain, 
                              Exception error, String cipherSuite, int httpStatus, boolean hostnameVerified) {
         this.success = success;
+        this.message = message;
         this.certificateChain = certificateChain;
         this.error = error;
         this.cipherSuite = cipherSuite;
@@ -24,6 +26,10 @@ public class SSLConnectionResult {
 
     public boolean isSuccess() {
         return success;
+    }
+
+    public String getMessage() {
+        return message;
     }
 
     public List<X509Certificate> getCertificateChain() {
@@ -68,23 +74,28 @@ public class SSLConnectionResult {
                 sb.append("    Sig. Algorithm: ").append(cert.getSigAlgName()).append("\n");
                 sb.append("    PubKey Alg    : ").append(cert.getPublicKey().getAlgorithm());
                 
-                // 添加 Subject Alternative Names 扩展信息
+                // 添加 Subject Alternative Names
                 try {
                     Collection<List<?>> sans = cert.getSubjectAlternativeNames();
                     if (sans != null && !sans.isEmpty()) {
-                        sb.append("\n    Subject Alternative Names:\n");
+                        sb.append("\n    SubjectAltNames:");
                         for (List<?> san : sans) {
-                            Integer type = (Integer) san.get(0);
-                            String value = (String) san.get(1);
-                            sb.append("        Type ").append(type).append(": ").append(value).append("\n");
+                            sb.append("\n      • ").append(san.get(0)).append(": ").append(san.get(1));
                         }
                     }
                 } catch (Exception e) {
-                    // 忽略无法获取SAN的情况
+                    // 忽略获取 SAN 时的错误
                 }
+                sb.append("\n");
             }
         }
-        
+
+        if (error != null) {
+            sb.append("\n❌ Error: ").append(error.getMessage());
+        } else if (success) {
+            sb.append("\n✅ SSL handshake and HTTP request succeeded.");
+        }
+
         return sb.toString();
     }
 } 

@@ -255,5 +255,13 @@ public class SSLTest implements Callable<Integer> {
         }
         result.put("certificateChain", certList);
         logger.info("→ Server sent {} certificate(s):", certs.length);
+        result.put("certificateCount", certs.length);
+        
+        @SuppressWarnings("unchecked")
+        Map<String, Object>[] certDetails = (Map<String, Object>[]) new Map[certs.length];
+        for (int i = 0; i < certs.length; i++) {
+            certDetails[i] = certValidator.getCertificateInfo(certs[i]);
+        }
+        result.put("certificates", certDetails);
     }
 }

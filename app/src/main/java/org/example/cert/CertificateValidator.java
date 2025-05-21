@@ -33,12 +33,15 @@ public class CertificateValidator {
 
     private final File keystoreFile;
     private final String keystorePassword;
-    private final CertificateRevocationChecker revocationChecker;
+    private final CertificateRevocationChecker revocationChecker = new CertificateRevocationChecker(true, false);
 
     public CertificateValidator(File keystoreFile, String keystorePassword) {
+        this(keystoreFile, keystorePassword, true);
+    }
+
+    public CertificateValidator(File keystoreFile, String keystorePassword, boolean logCertificateDetails) {
         this.keystoreFile = keystoreFile;
         this.keystorePassword = keystorePassword;
-        this.revocationChecker = new CertificateRevocationChecker(true, true);
     }
 
     public X509Certificate[] validateCertificateChain(Certificate[] certs) throws CertificateException {
