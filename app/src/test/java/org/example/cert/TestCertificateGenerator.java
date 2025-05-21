@@ -19,6 +19,12 @@ public class TestCertificateGenerator {
 
     public static X509Certificate generateCertificate(String subject, String issuer, 
             KeyPair keyPair, KeyPair issuerKeyPair) throws Exception {
+        return generateCertificate(subject, issuer, keyPair, issuerKeyPair, null, null);
+    }
+
+    public static X509Certificate generateCertificate(String subject, String issuer,
+            KeyPair keyPair, KeyPair issuerKeyPair,
+            String[] additionalDnsNames, String[] ipAddresses) throws Exception {
         X500Name subjectDN = new X500Name(subject);
         X500Name issuerDN = new X500Name(issuer);
         
@@ -36,12 +42,33 @@ public class TestCertificateGenerator {
                 SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded())
         );
         
-        // Add Subject Alternative Names
-        GeneralName[] sans = new GeneralName[] {
-            new GeneralName(GeneralName.dNSName, "example.com"),
-            new GeneralName(GeneralName.dNSName, "*.example.com"),
-            new GeneralName(GeneralName.dNSName, "alt.example.com")
-        };
+        // 计算General Names的数量
+        int baseCount = 3; // 基本的SAN条目
+        int additionalDnsCount = additionalDnsNames != null ? additionalDnsNames.length : 0;
+        int ipAddressCount = ipAddresses != null ? ipAddresses.length : 0;
+        int totalCount = baseCount + additionalDnsCount + ipAddressCount;
+
+        GeneralName[] sans = new GeneralName[totalCount];
+
+        // 添加基本的DNS名称
+        sans[0] = new GeneralName(GeneralName.dNSName, "example.com");
+        sans[1] = new GeneralName(GeneralName.dNSName, "*.example.com");
+        sans[2] = new GeneralName(GeneralName.dNSName, "alt.example.com");
+
+        // 添加额外的DNS名称
+        if (additionalDnsNames != null) {
+            for (int i = 0; i < additionalDnsNames.length; i++) {
+                sans[baseCount + i] = new GeneralName(GeneralName.dNSName, additionalDnsNames[i]);
+            }
+        }
+
+        // 添加IP地址
+        if (ipAddresses != null) {
+            for (int i = 0; i < ipAddresses.length; i++) {
+                sans[baseCount + additionalDnsCount + i] = new GeneralName(GeneralName.iPAddress, ipAddresses[i]);
+            }
+        }
+
         certBuilder.addExtension(Extension.subjectAlternativeName, false, new GeneralNames(sans));
         
         // Sign the certificate
@@ -58,4 +85,5 @@ public class TestCertificateGenerator {
         keyPairGenerator.initialize(2048);
         return keyPairGenerator.generateKeyPair();
     }
-} 
+}
+
