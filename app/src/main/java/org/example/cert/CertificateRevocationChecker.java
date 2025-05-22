@@ -1,199 +1,500 @@
 package org.example.cert;
 
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.DEROctetString;
+import org.bouncycastle.asn1.x509.AccessDescription;
+import org.bouncycastle.asn1.x509.AuthorityInformationAccess;
+import org.bouncycastle.asn1.x509.CRLDistPoint;
+import org.bouncycastle.asn1.x509.DistributionPoint;
+import org.bouncycastle.asn1.x509.DistributionPointName;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
+import org.bouncycastle.cert.ocsp.BasicOCSPResp;
+import org.bouncycastle.cert.ocsp.CertificateID;
+import org.bouncycastle.cert.ocsp.CertificateStatus;
+import org.bouncycastle.cert.ocsp.OCSPReq;
+import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
+import org.bouncycastle.cert.ocsp.OCSPResp;
+import org.bouncycastle.cert.ocsp.RevokedStatus;
+import org.bouncycastle.cert.ocsp.SingleResp;
+import org.bouncycastle.cert.ocsp.UnknownStatus;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.DigestCalculatorProvider;
+import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.example.model.CertificateDetails;
+import org.example.model.RevocationStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.net.URL;
+import java.security.Security;
 import java.security.cert.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CertificateRevocationChecker {
     private static final Logger logger = LoggerFactory.getLogger(CertificateRevocationChecker.class);
-    private final HttpClient httpClient;
-    private final boolean checkOCSP;
-    private final boolean checkCRL;
+    private final boolean checkOCSPEnabled;
+    private final boolean checkCRLEnabled;
+
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+    }
 
     public CertificateRevocationChecker(boolean checkOCSP, boolean checkCRL) {
-        this.checkOCSP = checkOCSP;
-        this.checkCRL = checkCRL;
-        this.httpClient = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+        this.checkOCSPEnabled = checkOCSP;
+        this.checkCRLEnabled = checkCRL;
+        logger.info("CertificateRevocationChecker initialized. OCSP enabled: {}, CRL enabled: {}", checkOCSP, checkCRL);
     }
 
-    public void checkRevocation(X509Certificate cert) throws CertificateException {
-        if (cert == null) {
-            throw new NullPointerException("Certificate cannot be null");
-        }
+    public void checkRevocation(X509Certificate cert, X509Certificate issuerCert, CertificateDetails detailsToUpdate) {
+        String certId = "Cert Subject: " + (cert != null ? cert.getSubjectX500Principal().getName() : "null") +
+                        ", Serial: " + (cert != null ? cert.getSerialNumber() : "null");
+        logger.debug("Initiating revocation check for {}.", certId);
 
-        if (!checkOCSP && !checkCRL) {
+        if (cert == null) {
+            logger.warn("Certificate to check is null. Skipping revocation check for {}.", certId);
+            detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+            detailsToUpdate.setFailureReason("Certificate to check was null.");
+            return;
+        }
+        if (detailsToUpdate == null) {
+            // This case should ideally not happen if called correctly.
+            logger.error("CertificateDetails object is null for {}. Cannot update status.", certId);
             return;
         }
 
-        try {
-            if (checkOCSP) {
-                checkOCSP(cert);
+        // Initialize with a baseline UNKNOWN, to be updated by specific checks.
+        detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+        detailsToUpdate.setFailureReason(null); // Clear any prior reasons
+
+        boolean ocspAttempted = false;
+        if (checkOCSPEnabled) {
+            ocspAttempted = true;
+            logger.debug("Attempting OCSP check for {}.", certId);
+            if (issuerCert == null) {
+                logger.warn("Issuer certificate is null for {}. Skipping OCSP check.", certId);
+                detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                detailsToUpdate.setFailureReason("Issuer certificate not provided for OCSP check.");
+            } else {
+                try {
+                    checkOCSP(cert, issuerCert, detailsToUpdate);
+                } catch (Exception e) { // Catching generic Exception to be safe, specific ones preferred
+                    logger.error("Exception during OCSP check for {}: {}", certId, e.getMessage(), e);
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                    detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "OCSP check threw an exception: " + e.getMessage()));
+                }
             }
-            if (checkCRL) {
-                checkCRL(cert);
+        } else {
+             logger.info("OCSP check is disabled for {}.", certId);
+        }
+
+        // Determine if CRL check should proceed
+        boolean shouldCheckCrl = checkCRLEnabled;
+        if (ocspAttempted && detailsToUpdate.getRevocationStatus() == RevocationStatus.GOOD) {
+            logger.info("OCSP status is GOOD for {}. CRL check will be skipped.", certId);
+            shouldCheckCrl = false; 
+        } else if (ocspAttempted && detailsToUpdate.getRevocationStatus() == RevocationStatus.REVOKED) {
+            logger.info("OCSP status is REVOKED for {}. CRL check will be skipped.", certId);
+            shouldCheckCrl = false;
+        } else if (ocspAttempted) { // OCSP was attempted but result was UNKNOWN or some error
+            logger.info("OCSP status for {} is {}. Proceeding to CRL check if enabled.", certId, detailsToUpdate.getRevocationStatus());
+        }
+
+
+        if (shouldCheckCrl) {
+            logger.debug("Attempting CRL check for {}.", certId);
+            if (issuerCert == null) {
+                 logger.warn("Issuer certificate is null for {}. Skipping CRL check.", certId);
+                 // Only set to UNKNOWN if OCSP didn't already determine a status or also failed due to no issuer
+                 if (detailsToUpdate.getRevocationStatus() == RevocationStatus.UNKNOWN || detailsToUpdate.getRevocationStatus() == RevocationStatus.NOT_CHECKED) {
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                    detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"Issuer certificate not provided for CRL check."));
+                 }
+            } else {
+                try {
+                    checkCRL(cert, issuerCert, detailsToUpdate);
+                } catch (Exception e) { // Catching generic Exception
+                    logger.error("Exception during CRL check for {}: {}", certId, e.getMessage(), e);
+                    if (detailsToUpdate.getRevocationStatus() == RevocationStatus.UNKNOWN || detailsToUpdate.getRevocationStatus() == RevocationStatus.NOT_CHECKED) {
+                        detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                        detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"CRL check threw an exception: " + e.getMessage()));
+                    }
+                }
+            }
+        } else if (checkCRLEnabled) { 
+             logger.info("CRL check for {} was enabled but skipped due to definitive OCSP status: {}", certId, detailsToUpdate.getRevocationStatus());
+        } else {
+             logger.info("CRL check is disabled for {}.", certId);
+        }
+        
+        // Final status determination
+        if (detailsToUpdate.getRevocationStatus() == RevocationStatus.UNKNOWN) {
+            if (!checkOCSPEnabled && !checkCRLEnabled) {
+                detailsToUpdate.setRevocationStatus(RevocationStatus.NOT_CHECKED);
+                detailsToUpdate.setFailureReason("Neither OCSP nor CRL checks were enabled.");
+                logger.info("Revocation for {}: NOT_CHECKED (both OCSP and CRL disabled).", certId);
+            } else {
+                // If checks were enabled but result is still UNKNOWN, ensure a reason explains why.
+                String finalFailureReason = detailsToUpdate.getFailureReason();
+                if (finalFailureReason == null || finalFailureReason.trim().isEmpty()) {
+                     finalFailureReason = "Revocation status could not be determined via enabled checks (OCSP/CRL).";
+                }
+                detailsToUpdate.setFailureReason(finalFailureReason); // Ensure it's set
+                logger.warn("Revocation for {}: UNKNOWN. Reason: {}", certId, finalFailureReason);
+            }
+        } else { // GOOD or REVOKED
+            logger.info("Final revocation status for {}: {}. Reason: {}", certId, detailsToUpdate.getRevocationStatus(), detailsToUpdate.getFailureReason() == null ? "N/A" : detailsToUpdate.getFailureReason());
+        }
+    }
+
+    private void checkOCSP(X509Certificate cert, X509Certificate issuerCert, CertificateDetails detailsToUpdate) {
+        String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
+        String ocspUrl = getOCSPUrl(cert);
+        detailsToUpdate.setOcspResponderUrl(ocspUrl); 
+
+        if (ocspUrl == null) {
+            logger.info("No OCSP URL found in AIA for {}.", certId);
+            detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "No OCSP URL found in certificate AIA extension."));
+            // Status remains UNKNOWN from checkRevocation or previous check
+            return;
+        }
+        logger.info("Attempting OCSP check for {} using responder: {}", certId, ocspUrl);
+
+        try {
+            // 1. Create CertificateID
+            // Used to identify the certificate in the OCSP request.
+            DigestCalculatorProvider digestCalculatorProvider = new JcaDigestCalculatorProviderBuilder().build();
+            X509CertificateHolder certHolder = new JcaX509CertificateHolder(cert);
+            X509CertificateHolder issuerCertHolder = new JcaX509CertificateHolder(issuerCert);
+            CertificateID certificateID = new CertificateID(digestCalculatorProvider.get(CertificateID.HASH_SHA1), issuerCertHolder, certHolder.getSerialNumber());
+            logger.debug("OCSP CertificateID created for {}.", certId);
+
+            // 2. Construct OCSP Request
+            OCSPReqBuilder builder = new OCSPReqBuilder();
+            builder.addRequest(certificateID);
+            // Can add nonce here: builder.setRequestExtensions(...)
+            OCSPReq request = builder.build();
+            logger.debug("OCSP request constructed for {}.", certId);
+
+            // 3. Send Request
+            HttpURLConnection connection = (HttpURLConnection) new URL(ocspUrl).openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/ocsp-request");
+            connection.setRequestProperty("Accept", "application/ocsp-response");
+            connection.setDoOutput(true);
+            connection.setConnectTimeout(5000); 
+            connection.setReadTimeout(5000);    
+
+            try (OutputStream os = connection.getOutputStream()) {
+                os.write(request.getEncoded());
+            }
+            logger.debug("OCSP request sent to {} for {}.", ocspUrl, certId);
+
+            // 4. Receive and Process Response
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                logger.warn("OCSP request to {} for {} failed: HTTP {}", ocspUrl, certId, responseCode);
+                detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"OCSP request to " + ocspUrl + " failed: HTTP " + responseCode));
+                return;
+            }
+            logger.debug("OCSP response received from {} for {}. HTTP Status: {}", ocspUrl, certId, responseCode);
+
+            try (InputStream is = connection.getInputStream()) {
+                OCSPResp ocspResponse = new OCSPResp(is.readAllBytes());
+                logger.debug("OCSP response status from {}: {} for {}.", ocspUrl, ocspResponse.getStatus(), certId);
+
+
+                if (ocspResponse.getStatus() != OCSPResp.SUCCESSFUL) {
+                    logger.warn("OCSP server at {} returned non-SUCCESSFUL status: {} for {}.", ocspUrl, ocspResponse.getStatus(), certId);
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                    detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"OCSP response from " + ocspUrl + " status: " + ocspResponse.getStatus()));
+                    return;
+                }
+
+                BasicOCSPResp basicResponse = (BasicOCSPResp) ocspResponse.getResponseObject();
+                if (basicResponse == null) {
+                    logger.warn("BasicOCSPResp is null in OCSP response from {} for {}.", ocspUrl, certId);
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                    detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"BasicOCSPResp was null in OCSP response from " + ocspUrl));
+                    return;
+                }
+
+                // TODO: Optionally verify BasicOCSPResp signature here using basicResponse.getResponderId(), basicResponse.getSignature(),
+                // and the OCSP responder's certificate. This involves finding the responder's certificate,
+                // which might be included in basicResponse.getCerts() or need separate fetching.
+
+                boolean statusFound = false;
+                for (SingleResp singleResponse : basicResponse.getResponses()) {
+                    // Compare the CertificateID from the response with the one from our request
+                    if (singleResponse.getCertID().equals(certificateID)) {
+                        statusFound = true;
+                        Object status = singleResponse.getCertStatus();
+                        if (status == CertificateStatus.GOOD) {
+                            detailsToUpdate.setRevocationStatus(RevocationStatus.GOOD);
+                            detailsToUpdate.setFailureReason(null); // Clear previous failure reasons as status is definitively GOOD
+                            logger.info("OCSP status for {}: GOOD (Responder: {})", certId, ocspUrl);
+                        } else if (status instanceof RevokedStatus) {
+                            detailsToUpdate.setRevocationStatus(RevocationStatus.REVOKED);
+                            RevokedStatus revokedStatus = (RevokedStatus) status;
+                            String revocationReason = revokedStatus.hasRevocationReason() ? " Reason: " + revokedStatus.getRevocationReason() : "";
+                            logger.warn("OCSP status for {}: REVOKED (Responder: {}). Time: {}.{}", certId, ocspUrl, revokedStatus.getRevocationTime(), revocationReason);
+                            detailsToUpdate.setFailureReason("Certificate REVOKED via OCSP from " + ocspUrl + ". Time: " + revokedStatus.getRevocationTime() + "." + revocationReason);
+                        } else if (status instanceof UnknownStatus) {
+                            detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                            logger.warn("OCSP status for {}: UNKNOWN (Responder: {})", certId, ocspUrl);
+                            detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"OCSP status UNKNOWN from " + ocspUrl));
+                        } else { // Should not happen with standard OCSP responses
+                            detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                            logger.warn("OCSP status for {}: UNHANDLED (Responder: {}). Status object: {}", certId, ocspUrl, status);
+                            detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"OCSP status unhandled from " + ocspUrl + ": " + (status != null ? status.getClass().getName() : "null")));
+                        }
+                        break; // Found status for our specific certID
+                    }
+                }
+                if (!statusFound) {
+                    logger.warn("OCSP response from {} did not contain status for the requested certificate: {}", ocspUrl, certId);
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                    detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"OCSP response from " + ocspUrl + " did not contain status for the certificate."));
+                }
             }
         } catch (Exception e) {
-            throw new CertificateException("Certificate revocation check failed: " + e.getMessage(), e);
+            logger.error("Exception during OCSP check process for {} (URL: {}): {}", certId, ocspUrl, e.getMessage(), e);
+            detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+            detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"Exception during OCSP check with " + ocspUrl + ": " + e.getMessage()));
         }
     }
 
-    private void checkOCSP(X509Certificate cert) throws IOException, InterruptedException, CertificateException {
-        String ocspUrl = getOCSPUrl(cert);
-        if (ocspUrl == null) {
-            logger.debug("No OCSP URL found in certificate");
+    private void checkCRL(X509Certificate cert, X509Certificate issuerCert, CertificateDetails detailsToUpdate) {
+        String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
+        List<String> crlUrls = getCRLUrls(cert);
+        detailsToUpdate.setCrlDistributionPoints(crlUrls); // Store all found URLs
+        boolean oneCrlProcessedSuccessfully = false; 
+        String accumulatedCrlFailureReasons = "";
+
+        if (crlUrls.isEmpty()) {
+            logger.info("No CRL URLs found in CDP for {}.", certId);
+             if (detailsToUpdate.getRevocationStatus() == RevocationStatus.UNKNOWN || detailsToUpdate.getRevocationStatus() == RevocationStatus.NOT_CHECKED) {
+                 detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "No CRL URLs found in certificate CDP extension."));
+            }
             return;
         }
-
-        logger.debug("Checking OCSP status at: {}", ocspUrl);
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(ocspUrl))
-                .GET()
-                .build();
-
-        HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        if (response.statusCode() != 200) {
-            throw new IOException("OCSP request failed with status: " + response.statusCode());
-        }
-
-        // Parse OCSP response
-        try {
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            X509Certificate responderCert = (X509Certificate) cf.generateCertificate(
-                    new ByteArrayInputStream(response.body()));
-            
-            // Verify OCSP response
-            if (!verifyOCSPResponse(responderCert, cert)) {
-                throw new CertificateException("Invalid OCSP response");
-            }
-            
-            logger.debug("OCSP check completed successfully");
-        } catch (CertificateException e) {
-            throw new CertificateException("Failed to parse OCSP response: " + e.getMessage(), e);
-        }
-    }
-
-    private void checkCRL(X509Certificate cert) throws IOException, CRLException, CertificateException {
-        List<String> crlUrls = getCRLUrls(cert);
-        if (crlUrls.isEmpty()) {
-            logger.debug("No CRL URLs found in certificate");
+        
+        if (issuerCert == null) { // Should have been checked by caller, but defensive check
+            logger.warn("Cannot verify CRL for {} without issuer certificate.", certId);
+            detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+            detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "CRL check skipped: issuer certificate not available."));
             return;
         }
 
         for (String crlUrl : crlUrls) {
-            logger.debug("Checking CRL at: {}", crlUrl);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(crlUrl))
-                    .GET()
-                    .build();
-
+            logger.info("Attempting CRL check for {} using CRL: {}", certId, crlUrl);
             try {
-                HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-                if (response.statusCode() != 200) {
-                    logger.warn("CRL request failed with status: {}", response.statusCode());
-                    continue;
+                // 1. Download CRL
+                HttpURLConnection connection = (HttpURLConnection) new URL(crlUrl).openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(5000); 
+                connection.setReadTimeout(5000);    
+
+                int responseCode = connection.getResponseCode();
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    logger.warn("CRL request to {} for {} failed: HTTP {}", crlUrl, certId, responseCode);
+                    accumulatedCrlFailureReasons = appendFailureReason(accumulatedCrlFailureReasons, "CRL " + crlUrl + " request failed: HTTP " + responseCode + ". ");
+                    continue; // Try next CRL URL
+                }
+                logger.debug("CRL downloaded from {} for {}.", crlUrl, certId);
+
+                X509CRL crl;
+                try (InputStream is = connection.getInputStream()) {
+                    // 2. Parse CRL
+                    CertificateFactory cf = CertificateFactory.getInstance("X.509", "BC");
+                    crl = (X509CRL) cf.generateCRL(is);
                 }
 
-                X509CRL crl = parseCRL(response.body());
-                if (crl.isRevoked(cert)) {
-                    throw new CertificateException("Certificate is revoked according to CRL");
+                // 3. Verify CRL Signature using issuer's public key
+                crl.verify(issuerCert.getPublicKey(), "BC");
+                logger.debug("CRL signature verified for {} from URL: {}", certId, crlUrl);
+
+                // 4. Check CRL Validity Period (thisUpdate, nextUpdate)
+                java.util.Date currentDate = new java.util.Date();
+                if (crl.getThisUpdate().after(currentDate) || (crl.getNextUpdate() != null && crl.getNextUpdate().before(currentDate))) {
+                    logger.warn("CRL from {} for {} is not within its validity period. ThisUpdate: {}, NextUpdate: {}", crlUrl, certId, crl.getThisUpdate(), crl.getNextUpdate());
+                    accumulatedCrlFailureReasons = appendFailureReason(accumulatedCrlFailureReasons, "CRL " + crlUrl + " is out of validity period (ThisUpdate: " + crl.getThisUpdate() + ", NextUpdate: " + crl.getNextUpdate() + "). ");
+                    continue; // Try next CRL if this one is out of date
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("CRL check interrupted", e);
+                logger.debug("CRL from {} for {} is within its validity period.", crlUrl, certId);
+                oneCrlProcessedSuccessfully = true; // Mark that at least one CRL was successfully processed (signature & time valid)
+
+                // 5. Check if the certificate is listed on the CRL
+                if (crl.isRevoked(cert)) {
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.REVOKED);
+                    X509CRLEntry entry = crl.getRevokedCertificate(cert.getSerialNumber());
+                    String reason = "";
+                    if (entry != null && entry.getRevocationReason() != null) {
+                        reason = " Reason: " + entry.getRevocationReason().toString();
+                    }
+                    logger.warn("Certificate {} REVOKED per CRL {}.{}", certId, crlUrl, reason);
+                    detailsToUpdate.setFailureReason("Certificate REVOKED per CRL: " + crlUrl + "." + reason);
+                    return; // Definitive REVOKED status found.
+                }
+                logger.info("Certificate {} is NOT revoked according to CRL: {}", certId, crlUrl);
+                // If not revoked by this valid CRL, and current status is still UNKNOWN or NOT_CHECKED, set to GOOD.
+                if (detailsToUpdate.getRevocationStatus() == RevocationStatus.UNKNOWN || detailsToUpdate.getRevocationStatus() == RevocationStatus.NOT_CHECKED) {
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.GOOD);
+                    detailsToUpdate.setFailureReason(null); // Clear previous failure reasons as we found a good CRL status.
+                }
+                return; // Definitive GOOD status found from a valid CRL.
+
+            } catch (Exception e) { 
+                logger.error("Exception during CRL processing for {} from URL {}: {}", certId, crlUrl, e.getMessage(), e);
+                accumulatedCrlFailureReasons = appendFailureReason(accumulatedCrlFailureReasons, "CRL " + crlUrl + " processing error: " + e.getMessage() + ". ");
+            }
+        }
+
+        // After checking all URLs, if status is still UNKNOWN or NOT_CHECKED
+        if (detailsToUpdate.getRevocationStatus() == RevocationStatus.UNKNOWN || detailsToUpdate.getRevocationStatus() == RevocationStatus.NOT_CHECKED) {
+            String existingFailureReason = detailsToUpdate.getFailureReason();
+            if (!oneCrlProcessedSuccessfully && !crlUrls.isEmpty()) { // All CRLs failed to process (network, parse, verify signature/time)
+                detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                detailsToUpdate.setFailureReason(appendFailureReason(existingFailureReason, "All CRLs failed to process. Reasons: " + accumulatedCrlFailureReasons));
+            } else if (oneCrlProcessedSuccessfully) { 
+                // This case should not be reached if a CRL was successfully processed and the cert was not on it,
+                // as the status should have been set to GOOD and returned.
+                // If it is reached, it implies an unexpected logic flow or that 'GOOD' was overwritten.
+                detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN); 
+                detailsToUpdate.setFailureReason(appendFailureReason(existingFailureReason, "CRL checks completed, but status remains UNKNOWN despite processing some CRLs. Check logs. Errors: " + accumulatedCrlFailureReasons));
+            } else if (crlUrls.isEmpty()) {
+                // This case is handled at the start of the method. If failureReason is still null, it means OCSP was also not helpful.
+                if (existingFailureReason == null || existingFailureReason.trim().isEmpty()) {
+                     detailsToUpdate.setFailureReason("No CRL URLs found and OCSP did not yield a definitive status.");
+                }
             }
         }
     }
-
-    private String getOCSPUrl(X509Certificate cert) {
-        try {
-            // Get Authority Information Access extension
-            byte[] aiaExtension = cert.getExtensionValue("1.3.6.1.5.5.7.1.1");
-            if (aiaExtension == null) {
-                return null;
-            }
-
-            // Parse the extension to find OCSP URL
-            // This is a simplified implementation - in practice, you'd need to properly parse the ASN.1 structure
-            String aiaString = new String(aiaExtension);
-            if (aiaString.contains("OCSP")) {
-                int start = aiaString.indexOf("http://");
-                if (start == -1) {
-                    start = aiaString.indexOf("https://");
-                }
-                if (start != -1) {
-                    int end = aiaString.indexOf("\n", start);
-                    if (end == -1) {
-                        end = aiaString.length();
-                    }
-                    return aiaString.substring(start, end).trim();
-                }
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to extract OCSP URL: {}", e.getMessage());
+    
+    private String appendFailureReason(String existingReason, String newReason) {
+        if (newReason == null || newReason.trim().isEmpty()) return existingReason;
+        if (existingReason == null || existingReason.trim().isEmpty()) {
+            return newReason;
         }
+        // Avoid duplicate messages if newReason is already part of existingReason
+        if (existingReason.contains(newReason)) return existingReason;
+        return existingReason + "; " + newReason;
+    }
+
+private String getOCSPUrl(X509Certificate cert) {
+    String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
+    logger.debug("Extracting OCSP URL for {}.", certId);
+    // Standard OID for Authority Information Access extension
+    byte[] aiaBytes = cert.getExtensionValue(Extension.authorityInfoAccess.getId());
+    if (aiaBytes == null) {
+        logger.info("No AIA extension found in certificate {}.", certId);
         return null;
     }
-
-    private List<String> getCRLUrls(X509Certificate cert) {
-        List<String> urls = new ArrayList<>();
-        try {
-            // Get CRL Distribution Points extension
-            byte[] crlDpExtension = cert.getExtensionValue("2.5.29.31");
-            if (crlDpExtension == null) {
-                return urls;
-            }
-
-            // Parse the extension to find CRL URLs
-            // This is a simplified implementation - in practice, you'd need to properly parse the ASN.1 structure
-            String crlDpString = new String(crlDpExtension);
-            int start = 0;
-            while (true) {
-                start = crlDpString.indexOf("http://", start);
-                if (start == -1) {
-                    start = crlDpString.indexOf("https://", start);
-                }
-                if (start == -1) {
-                    break;
-                }
-                int end = crlDpString.indexOf("\n", start);
-                if (end == -1) {
-                    end = crlDpString.length();
-                }
-                urls.add(crlDpString.substring(start, end).trim());
-                start = end;
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to extract CRL URLs: {}", e.getMessage());
+    try (ASN1InputStream asn1In = new ASN1InputStream(aiaBytes)) {
+        // The extension value is OCTET STRING, get the octets
+        ASN1OctetString octetString = (ASN1OctetString) asn1In.readObject();
+        if (octetString == null) {
+            logger.warn("AIA extension octet string is null for {}.", certId);
+            return null; 
         }
+
+        try (ASN1InputStream aiaSeqIn = new ASN1InputStream(octetString.getOctets())) {
+            ASN1Primitive aiaPrimitive = aiaSeqIn.readObject();
+            // The AIA extension is a sequence of AccessDescription objects
+            AuthorityInformationAccess aia = AuthorityInformationAccess.getInstance(aiaPrimitive);
+
+            for (AccessDescription ad : aia.getAccessDescriptions()) {
+                // Look for OCSP access method (id_ad_ocsp)
+                if (ad.getAccessMethod().equals(AccessDescription.id_ad_ocsp)) {
+                    GeneralName location = ad.getAccessLocation();
+                    // Check if the location is a URI
+                    if (location.getTagNo() == GeneralName.uniformResourceIdentifier) {
+                        String url = ((DERIA5String) location.getName()).getString();
+                        if (url.startsWith("http://") || url.startsWith("https://")) {
+                            logger.info("Found OCSP URL for {}: {}", certId, url);
+                            return url;
+                        } else {
+                            logger.warn("Found OCSP access location for {} but not a valid HTTP/HTTPS URL: {}", certId, url);
+                        }
+                    } else {
+                        logger.warn("Found OCSP access location for {} but not a URI: TagNo {}", certId, location.getTagNo());
+                    }
+                }
+            }
+        }
+    } catch (IOException | IllegalArgumentException e) { 
+        logger.error("Error parsing AIA extension for OCSP URL in {}: {}", certId, e.getMessage(), e);
+    }
+    logger.info("No valid OCSP URL found after parsing AIA for {}.", certId);
+    return null;
+}
+
+
+private List<String> getCRLUrls(X509Certificate cert) {
+    String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
+    logger.debug("Extracting CRL URLs for {}.", certId);
+    List<String> urls = new ArrayList<>();
+    // Standard OID for CRL Distribution Points extension
+    byte[] crlDpBytes = cert.getExtensionValue(Extension.cRLDistributionPoints.getId());
+    if (crlDpBytes == null) {
+        logger.info("No CRL Distribution Points extension found in certificate {}.", certId);
         return urls;
     }
 
-    private X509CRL parseCRL(byte[] crlData) throws CRLException {
-        try {
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            return (X509CRL) cf.generateCRL(new ByteArrayInputStream(crlData));
-        } catch (CertificateException e) {
-            throw new CRLException("Failed to parse CRL: " + e.getMessage(), e);
+    try (ASN1InputStream asn1In = new ASN1InputStream(new ByteArrayInputStream(crlDpBytes))) {
+        // The extension value is OCTET STRING, get the octets
+        DEROctetString dos = (DEROctetString) asn1In.readObject();
+        if (dos == null) {
+             logger.warn("CRL DP extension octet string is null for {}.", certId);
+            return urls;
         }
-    }
 
-    private boolean verifyOCSPResponse(X509Certificate responderCert, X509Certificate cert) {
-        // In a real implementation, you would:
-        // 1. Verify the responder certificate
-        // 2. Check the OCSP response signature
-        // 3. Verify the response is for the correct certificate
-        // 4. Check the response status
-        return true; // Simplified implementation
+        try (ASN1InputStream crlDistSeqIn = new ASN1InputStream(new ByteArrayInputStream(dos.getOctets()))) {
+            // The CRLDistPoint is a sequence of DistributionPoint objects
+            CRLDistPoint distPoint = CRLDistPoint.getInstance(crlDistSeqIn.readObject());
+
+            for (DistributionPoint dp : distPoint.getDistributionPoints()) {
+                DistributionPointName dpn = dp.getDistributionPoint();
+                // Check if the DistributionPointName contains GeneralNames
+                if (dpn != null && dpn.getType() == DistributionPointName.FULL_NAME) {
+                    GeneralNames gns = (GeneralNames) dpn.getName();
+                    for (GeneralName gn : gns.getNames()) {
+                        // Look for URIs
+                        if (gn.getTagNo() == GeneralName.uniformResourceIdentifier) {
+                            String url = ((DERIA5String) gn.getName()).getString();
+                            if (url.startsWith("http://") || url.startsWith("https://")) {
+                                urls.add(url);
+                                logger.info("Found CRL URL for {}: {}", certId, url);
+                            } else {
+                                logger.warn("Found CRL distribution point for {} but not a valid HTTP/HTTPS URL: {}", certId, url);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Exception e) { 
+        logger.error("Error parsing CRL Distribution Points extension for {}: {}", certId, e.getMessage(), e);
     }
-} 
+    if (urls.isEmpty()) {
+        logger.info("No valid CRL URLs found after parsing CDP for {}.", certId);
+    }
+    return urls;
+}
+    // Old verifyOCSPResponse and parseCRL methods can be removed or adapted if Bouncy Castle handles parsing.
+    // For now, Bouncy Castle's OCSPResp and standard CertificateFactory for CRL parsing are used.
+}

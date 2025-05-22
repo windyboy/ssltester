@@ -41,9 +41,9 @@ public class ResultFormatter {
                         resultMap.put("cipherSuite", ((SSLConnectionResult) result).getCipherSuite());
                         resultMap.put("hostnameVerified", ((SSLConnectionResult) result).isHostnameVerified());
                         resultMap.put("certificateChain", ((SSLConnectionResult) result).getCertificateChain());
-                        output = formatCertificateOutput(resultMap);
+                        output = formatTextOutput(resultMap);
                     } else if (result.containsKey("certificateChain") && !((List<?>) result.get("certificateChain")).isEmpty()) {
-                        output = formatCertificateOutput(result);
+                        output = formatTextOutput(result);
                     } else {
                         output = formatSimpleText(result);
                     }
@@ -67,86 +67,94 @@ public class ResultFormatter {
         }
     }
 
-    private String formatCertificateOutput(Map<String, Object> result) {
+    private String formatTextOutput(Map<String, Object> result) {
         StringBuilder sb = new StringBuilder();
-        
-        // 添加基本连接信息
+
+        // General connection info
         if (result.containsKey("httpStatus")) {
-            sb.append("→ HTTP Status  : ").append(result.get("httpStatus")).append("\n");
+            sb.append("→ HTTP Status         : ").append(result.get("httpStatus")).append("\n");
         }
         if (result.containsKey("cipherSuite")) {
-            sb.append("→ Cipher Suite : ").append(result.get("cipherSuite")).append("\n");
+            sb.append("→ Cipher Suite        : ").append(result.get("cipherSuite")).append("\n");
         }
         if (result.containsKey("hostnameVerified")) {
-            sb.append("→ Hostname verification ").append(Boolean.TRUE.equals(result.get("hostnameVerified")) ? "passed" : "failed").append("\n");
+            sb.append("→ Hostname Verification: ").append(Boolean.TRUE.equals(result.get("hostnameVerified")) ? "Passed" : "Failed").append("\n");
+        }
+        if (result.containsKey("status") && "success".equals(result.get("status"))) {
+             sb.append("→ Overall Status      : Success\n");
+        } else if (result.containsKey("error")) {
+             sb.append("→ Overall Status      : FAILED\n");
         }
 
-        // 添加证书信息
+
+        // Certificate chain details
         Object certChainObj = result.get("certificateChain");
         if (certChainObj instanceof List<?> certs && !certs.isEmpty()) {
-            sb.append("→ Server sent ").append(certs.size()).append(" certificate(s):\n");
+            sb.append("→ Server Certificate Chain (").append(certs.size()).append(" certificate(s)):\n");
             for (int i = 0; i < certs.size(); i++) {
                 Object certObj = certs.get(i);
-                if (certObj instanceof Map<?, ?> cert) {
-                    sb.append("\nCertificate [").append(i + 1).append("]\n");
+                if (certObj instanceof Map<?, ?> certMap) { // Use a more specific variable name
+                    sb.append("\n  Certificate [").append(i + 1).append("]:\n");
                     
-                    // 基本信息
-                    if (cert.containsKey("subjectDN")) {
-                        sb.append("    Subject DN    : ").append(cert.get("subjectDN")).append("\n");
+                    // Basic Info
+                    sb.append("    Subject DN        : ").append(certMap.getOrDefault("subjectDN", "N/A")).append("\n");
+                    sb.append("    Issuer DN         : ").append(certMap.getOrDefault("issuerDN", "N/A")).append("\n");
+                    sb.append("    Serial Number     : ").append(certMap.getOrDefault("serialNumber", "N/A")).append("\n");
+                    sb.append("    Version           : ").append(certMap.getOrDefault("version", "N/A")).append("\n");
+                    sb.append("    Valid From        : ").append(certMap.getOrDefault("validFrom", "N/A")).append("\n");
+                    sb.append("    Valid Until       : ").append(certMap.getOrDefault("validUntil", "N/A")).append("\n");
+                    sb.append("    Signature Algorithm: ").append(certMap.getOrDefault("signatureAlgorithm", "N/A")).append("\n");
+                    sb.append("    Public Key Alg.   : ").append(certMap.getOrDefault("publicKeyAlgorithm", "N/A")).append("\n");
+
+                    // Status Flags
+                    sb.append("    Is Self-Signed    : ").append(certMap.getOrDefault("selfSigned", "false")).append("\n");
+                    sb.append("    Is Expired        : ").append(certMap.getOrDefault("expired", "false")).append("\n");
+                    sb.append("    Is Not Yet Valid  : ").append(certMap.getOrDefault("notYetValid", "false")).append("\n");
+
+                    // Trust and Revocation
+                    sb.append("    Trust Status      : ").append(certMap.getOrDefault("trustStatus", "UNKNOWN")).append("\n");
+                    sb.append("    Revocation Status : ").append(certMap.getOrDefault("revocationStatus", "NOT_CHECKED")).append("\n");
+
+                    // OCSP/CRL Info
+                    if (certMap.containsKey("ocspResponderUrl") && certMap.get("ocspResponderUrl") != null && !((String)certMap.get("ocspResponderUrl")).isEmpty()) {
+                        sb.append("    OCSP Responder URL: ").append(certMap.get("ocspResponderUrl")).append("\n");
                     }
-                    if (cert.containsKey("issuerDN")) {
-                        sb.append("    Issuer DN     : ").append(cert.get("issuerDN")).append("\n");
-                    }
-                    if (cert.containsKey("version")) {
-                        sb.append("    Version       : ").append(cert.get("version")).append("\n");
-                    }
-                    if (cert.containsKey("serialNumber")) {
-                        sb.append("    Serial Number : ").append(cert.get("serialNumber")).append("\n");
-                    }
-                    if (cert.containsKey("validFrom")) {
-                        sb.append("    Valid From    : ").append(cert.get("validFrom")).append("\n");
-                    }
-                    if (cert.containsKey("validUntil")) {
-                        sb.append("    Valid Until   : ").append(cert.get("validUntil")).append("\n");
-                    }
-                    if (cert.containsKey("signatureAlgorithm")) {
-                        sb.append("    Sig. Algorithm: ").append(cert.get("signatureAlgorithm")).append("\n");
-                    }
-                    if (cert.containsKey("publicKeyAlgorithm")) {
-                        sb.append("    PubKey Alg    : ").append(cert.get("publicKeyAlgorithm")).append("\n");
-                    }
-                    
-                    // 证书状态信息
-                    if (cert.containsKey("status")) {
-                        sb.append("    Status        : ").append(cert.get("status")).append("\n");
-                    }
-                    if (cert.containsKey("trusted")) {
-                        sb.append("    Trusted       : ").append(cert.get("trusted")).append("\n");
-                    }
-                    if (cert.containsKey("expired")) {
-                        sb.append("    Expired       : ").append(cert.get("expired")).append("\n");
-                    }
-                    if (cert.containsKey("notYetValid")) {
-                        sb.append("    Not Yet Valid : ").append(cert.get("notYetValid")).append("\n");
-                    }
-                    if (cert.containsKey("revoked")) {
-                        sb.append("    Revoked       : ").append(cert.get("revoked")).append("\n");
-                    }
-                    if (cert.containsKey("selfSigned")) {
-                        sb.append("    Self Signed   : ").append(cert.get("selfSigned")).append("\n");
+                    if (certMap.containsKey("crlDistributionPoints") && certMap.get("crlDistributionPoints") != null && !((List<?>)certMap.get("crlDistributionPoints")).isEmpty()) {
+                        sb.append("    CRL Distrib. Points: ").append(certMap.get("crlDistributionPoints").toString()).append("\n");
                     }
                     
+                    // Failure Reason (conditionally displayed based on status)
+                    Object trustStatus = certMap.get("trustStatus");
+                    Object revocationStatus = certMap.get("revocationStatus");
+                    if (certMap.containsKey("failureReason") && certMap.get("failureReason") != null && !((String)certMap.get("failureReason")).isEmpty()) {
+                        boolean trustNotOk = "NOT_TRUSTED".equals(trustStatus) || "UNKNOWN".equals(trustStatus);
+                        boolean revokeNotOk = "REVOKED".equals(revocationStatus) || "UNKNOWN".equals(revocationStatus);
+                        if (trustNotOk || revokeNotOk) {
+                             sb.append("    Failure Reason    : ").append(certMap.get("failureReason")).append("\n");
+                        } else {
+                             // Optionally log if there's a failure reason but statuses are good (might indicate logic error)
+                             logger.debug("Certificate has failureReason but status is OK: Subject {}, Trust: {}, Revoke: {}", certMap.get("subjectDN"), trustStatus, revocationStatus);
+                        }
+                    }
+
                     // Subject Alternative Names
-                    if (cert.containsKey("subjectAlternativeNames")) {
-                        Object sansObj = cert.get("subjectAlternativeNames");
-                        if (sansObj instanceof Map<?, ?> sans) {
-                            if (!sans.isEmpty()) {
-                                sb.append("    Subject Alternative Names:\n");
-                                for (Map.Entry<?, ?> san : sans.entrySet()) {
-                                    sb.append("        Type ").append(san.getKey()).append(": ").append(san.getValue()).append("\n");
-                                }
+                    Object sansObj = cert.get("subjectAlternativeNames");
+                    if (sansObj instanceof Map<?, ?> sansMap) { // Check if it's a Map
+                        if (!sansMap.isEmpty()) {
+                            sb.append("    Subject Alternative Names:\n");
+                            for (Map.Entry<?, ?> sanEntry : sansMap.entrySet()) {
+                                sb.append("        Type ").append(sanEntry.getKey()).append(": ").append(sanEntry.getValue()).append("\n");
                             }
                         }
+                    } else if (sansObj instanceof List<?> sanList) { // Check if it's a list (for CRL points, etc.)
+                        if (!sanList.isEmpty()) {
+                            // This part might need specific formatting depending on what sanList contains
+                            // For now, just printing it as a list.
+                            sb.append("    SAN (List)    : ").append(sansObj.toString()).append("\n");
+                        }
+                    } else if (sansObj != null) {
+                        // Handle other types or log a warning
+                        sb.append("    SAN (Unknown) : ").append(sansObj.toString()).append("\n");
                     }
                 }
             }
