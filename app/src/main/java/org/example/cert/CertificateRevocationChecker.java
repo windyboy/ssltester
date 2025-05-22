@@ -44,21 +44,51 @@ import java.security.cert.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Handles the revocation checking of X.509 certificates using OCSP and CRL mechanisms.
+ * It uses Bouncy Castle for cryptographic operations and ASN.1 parsing.
+ * The checks are configurable via constructor arguments.
+ */
 public class CertificateRevocationChecker {
     private static final Logger logger = LoggerFactory.getLogger(CertificateRevocationChecker.class);
+    /** Flag indicating whether OCSP checking is enabled. */
     private final boolean checkOCSPEnabled;
+    /** Flag indicating whether CRL checking is enabled. */
     private final boolean checkCRLEnabled;
 
     static {
-        Security.addProvider(new BouncyCastleProvider());
+        // Ensure Bouncy Castle provider is registered for cryptographic operations.
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
+            logger.debug("Bouncy Castle provider registered.");
+        } else {
+            logger.debug("Bouncy Castle provider already registered.");
+        }
     }
 
+    /**
+     * Constructs a new CertificateRevocationChecker.
+     *
+     * @param checkOCSP True to enable OCSP checks, false to disable.
+     * @param checkCRL  True to enable CRL checks, false to disable.
+     */
     public CertificateRevocationChecker(boolean checkOCSP, boolean checkCRL) {
         this.checkOCSPEnabled = checkOCSP;
         this.checkCRLEnabled = checkCRL;
         logger.info("CertificateRevocationChecker initialized. OCSP enabled: {}, CRL enabled: {}", checkOCSP, checkCRL);
     }
 
+    /**
+     * Checks the revocation status of the given certificate using OCSP and/or CRL,
+     * based on the checker's configuration.
+     * The results, including status and any failure reasons, are populated into the
+     * {@code detailsToUpdate} object.
+     *
+     * @param cert             The certificate to check. Must not be null.
+     * @param issuerCert       The issuer certificate of {@code cert}. Required for OCSP and CRL signature verification.
+     *                         Can be null if the certificate is self-signed and is its own issuer.
+     * @param detailsToUpdate  The {@link CertificateDetails} object to populate with revocation information. Must not be null.
+     */
     public void checkRevocation(X509Certificate cert, X509Certificate issuerCert, CertificateDetails detailsToUpdate) {
         String certId = "Cert Subject: " + (cert != null ? cert.getSubjectX500Principal().getName() : "null") +
                         ", Serial: " + (cert != null ? cert.getSerialNumber() : "null");
@@ -160,6 +190,14 @@ public class CertificateRevocationChecker {
         }
     }
 
+    /**
+     * Performs OCSP check for the given certificate.
+     * Updates {@code detailsToUpdate} with the OCSP URL, status, and failure reasons.
+     *
+     * @param cert The certificate to check.
+     * @param issuerCert The issuer certificate.
+     * @param detailsToUpdate The object to update with results.
+     */
     private void checkOCSP(X509Certificate cert, X509Certificate issuerCert, CertificateDetails detailsToUpdate) {
         String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
         String ocspUrl = getOCSPUrl(cert);
@@ -278,6 +316,14 @@ public class CertificateRevocationChecker {
         }
     }
 
+    /**
+     * Performs CRL check for the given certificate.
+     * Updates {@code detailsToUpdate} with CRL URLs, status, and failure reasons.
+     *
+     * @param cert The certificate to check.
+     * @param issuerCert The issuer certificate, used to verify CRL signature.
+     * @param detailsToUpdate The object to update with results.
+     */
     private void checkCRL(X509Certificate cert, X509Certificate issuerCert, CertificateDetails detailsToUpdate) {
         String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
         List<String> crlUrls = getCRLUrls(cert);
@@ -385,6 +431,13 @@ public class CertificateRevocationChecker {
         }
     }
     
+    /**
+     * Appends a new failure reason to an existing one, handling nulls and avoiding duplicates.
+     *
+     * @param existingReason The existing failure reason string (can be null or empty).
+     * @param newReason      The new failure reason to append.
+     * @return A combined failure reason string.
+     */
     private String appendFailureReason(String existingReason, String newReason) {
         if (newReason == null || newReason.trim().isEmpty()) return existingReason;
         if (existingReason == null || existingReason.trim().isEmpty()) {
@@ -395,6 +448,13 @@ public class CertificateRevocationChecker {
         return existingReason + "; " + newReason;
     }
 
+/**
+ * Extracts the OCSP responder URL from the Authority Information Access (AIA)
+ * extension of an X.509 certificate.
+ *
+ * @param cert The certificate from which to extract the OCSP URL.
+ * @return The OCSP responder URL as a String, or null if not found or an error occurs.
+ */
 private String getOCSPUrl(X509Certificate cert) {
     String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
     logger.debug("Extracting OCSP URL for {}.", certId);
@@ -444,6 +504,13 @@ private String getOCSPUrl(X509Certificate cert) {
 }
 
 
+/**
+ * Extracts CRL distribution point URLs from the CRL Distribution Points (CDP)
+ * extension of an X.509 certificate.
+ *
+ * @param cert The certificate from which to extract CRL URLs.
+ * @return A list of CRL distribution point URLs (Strings). Returns an empty list if none are found or an error occurs.
+ */
 private List<String> getCRLUrls(X509Certificate cert) {
     String certId = "Cert Subject: " + cert.getSubjectX500Principal().getName() + ", Serial: " + cert.getSerialNumber();
     logger.debug("Extracting CRL URLs for {}.", certId);

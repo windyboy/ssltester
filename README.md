@@ -9,7 +9,12 @@
 - 证书链验证
 - 主机名验证
 - 客户端证书支持
-- OCSP和CRL检查
+- **深入的OCSP和CRL检查 (In-depth OCSP and CRL Checks):**
+    - 利用Bouncy Castle库可靠解析证书中的AIA扩展以获取OCSP响应端点URI，以及解析CRL分发点URI。
+    - 执行OCSP请求和CRL下载，以验证证书链中每个证书的吊销状态。
+    - 为证书链中的每个证书显示详细的吊销状态（例如：GOOD, REVOKED, UNKNOWN）。
+    - 在输出中指明吊销信息的来源（OCSP或CRL）以及UNKNOWN或REVOKED状态的原因。
+    - 允许通过命令行参数 (`--check-ocsp=true/false`, `--check-crl=true/false`) 启用或禁用OCSP和CRL检查。
 - 详细的证书信息展示
 - 多种输出格式支持(TEXT, JSON, YAML)
 
@@ -173,7 +178,7 @@ logCertDetails: true
 | 1 | 无效参数 |
 | 2 | SSL握手错误 |
 | 3 | 连接错误 |
-| 4 | 证书验证错误 |
+| 4 | 证书验证错误 (例如：证书链无效，证书过期，主机名不匹配，证书被吊销) |
 | 5 | 主机名验证错误 |
 | 6 | 配置错误 |
 | 99 | 未预期的错误 |
@@ -185,54 +190,102 @@ logCertDetails: true
 ```
 SSL Test Results for https://example.com
 ==================================================
-连接状态: 成功
-HTTP状态码: 200
-协商的密码套件: TLS_AES_256_GCM_SHA384
-协议版本: TLSv1.3
-主机名验证: 通过
-OCSP检查: 通过
-CRL检查: 通过
+→ 整体状态          : 成功
+→ HTTP Status         : 200
+→ Cipher Suite        : TLS_AES_256_GCM_SHA384
+→ Hostname Verification: Passed
+--------------------------------------------------
+Server Certificate Chain (2 certificate(s)):
 
-服务器证书链:
-[1] Subject: CN=example.com, O=Example Inc, C=US
-    Issuer: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
-    有效期: 2023-01-15 至 2024-01-15
-    SHA-256: 3A:40:F5:9E:84:2E:...
+  Certificate [1]:
+    Subject DN        : CN=example.com, O=Example Inc, C=US
+    Issuer DN         : CN=Example Intermediate CA, O=Example Inc, C=US
+    Serial Number     : 1A2B3C4D5E6F7890
+    Version           : 3
+    Valid From        : 2023-01-15 00:00:00 UTC
+    Valid Until       : 2024-01-15 23:59:59 UTC
+    Signature Algorithm: SHA256withRSA
+    Public Key Alg.   : RSA
+    Is Self-Signed    : false
+    Is Expired        : false
+    Is Not Yet Valid  : false
+    Trust Status      : TRUSTED_BY_ROOT
+    Revocation Status : GOOD
+    OCSP Responder URL: http://ocsp.example.com/
+    CRL Distrib. Points: [http://crl.example.com/intermediate.crl]
+    Failure Reason    : None
+    Subject Alternative Names:
+        Type 2: example.com
+        Type 2: www.example.com
 
-[2] Subject: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
-    Issuer: CN=DigiCert Global Root CA, O=DigiCert Inc, OU=www.digicert.com, C=US
-    有效期: 2021-04-14 至 2031-04-13
-    SHA-256: 0A:35:48:7C:0C:3C:...
+  Certificate [2]:
+    Subject DN        : CN=Example Intermediate CA, O=Example Inc, C=US
+    Issuer DN         : CN=Example Root CA, O=Example Inc, C=US
+    Serial Number     : 0102030405060708
+    Version           : 3
+    Valid From        : 2021-04-14 00:00:00 UTC
+    Valid Until       : 2031-04-13 23:59:59 UTC
+    Signature Algorithm: SHA256withRSA
+    Public Key Alg.   : RSA
+    Is Self-Signed    : false
+    Is Expired        : false
+    Is Not Yet Valid  : false
+    Trust Status      : TRUSTED_BY_ROOT
+    Revocation Status : GOOD
+    OCSP Responder URL: http://ocsp.root.example.com/ (might be N/A for CAs)
+    CRL Distrib. Points: [http://crl.root.example.com/root.crl]
+    Failure Reason    : None
+--------------------------------------------------
 ```
 
 ### JSON输出
 
 ```json
 {
-  "url": "https://example.com",
-  "connectionStatus": "SUCCESS",
   "httpStatus": 200,
   "cipherSuite": "TLS_AES_256_GCM_SHA384",
-  "tlsVersion": "TLSv1.3",
-  "hostnameVerification": "PASSED",
-  "ocspCheck": "PASSED",
-  "crlCheck": "PASSED",
+  "hostnameVerified": true,
+  "status": "success",
   "certificateChain": [
     {
-      "position": 1,
-      "subject": "CN=example.com, O=Example Inc, C=US",
-      "issuer": "CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US",
-      "validFrom": "2023-01-15T00:00:00Z",
-      "validTo": "2024-01-15T23:59:59Z",
-      "sha256": "3A:40:F5:9E:84:2E:..."
+      "subjectDN": "CN=example.com, O=Example Inc, C=US",
+      "issuerDN": "CN=Example Intermediate CA, O=Example Inc, C=US",
+      "version": 3,
+      "serialNumber": "1A2B3C4D5E6F7890",
+      "validFrom": "2023-01-15 00:00:00 UTC",
+      "validUntil": "2024-01-15 23:59:59 UTC",
+      "signatureAlgorithm": "SHA256withRSA",
+      "publicKeyAlgorithm": "RSA",
+      "subjectAlternativeNames": {
+        "2": "www.example.com" 
+      },
+      "selfSigned": false,
+      "expired": false,
+      "notYetValid": false,
+      "trustStatus": "TRUSTED_BY_ROOT",
+      "revocationStatus": "GOOD",
+      "ocspResponderUrl": "http://ocsp.example.com/",
+      "crlDistributionPoints": ["http://crl.example.com/intermediate.crl"],
+      "failureReason": null
     },
     {
-      "position": 2,
-      "subject": "CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US",
-      "issuer": "CN=DigiCert Global Root CA, O=DigiCert Inc, OU=www.digicert.com, C=US",
-      "validFrom": "2021-04-14T00:00:00Z",
-      "validTo": "2031-04-13T23:59:59Z",
-      "sha256": "0A:35:48:7C:0C:3C:..."
+      "subjectDN": "CN=Example Intermediate CA, O=Example Inc, C=US",
+      "issuerDN": "CN=Example Root CA, O=Example Inc, C=US",
+      "version": 3,
+      "serialNumber": "0102030405060708",
+      "validFrom": "2021-04-14 00:00:00 UTC",
+      "validUntil": "2031-04-13 23:59:59 UTC",
+      "signatureAlgorithm": "SHA256withRSA",
+      "publicKeyAlgorithm": "RSA",
+      "subjectAlternativeNames": null,
+      "selfSigned": false,
+      "expired": false,
+      "notYetValid": false,
+      "trustStatus": "TRUSTED_BY_ROOT",
+      "revocationStatus": "UNKNOWN",
+      "ocspResponderUrl": "http://ocsp.root.example.com/",
+      "crlDistributionPoints": ["http://crl.root.example.com/root.crl"],
+      "failureReason": "CRL request timed out"
     }
   ]
 }
