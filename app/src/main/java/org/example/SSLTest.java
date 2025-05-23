@@ -17,9 +17,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import org.example.model.CertificateDetails;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URL;
+// Duplicate imports for IOException, URI, URL removed by keeping the first ones.
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -77,29 +75,71 @@ public class SSLTest implements Callable<Integer> {
      * Initializes with a default {@link SSLTestConfig}.
      */
     public SSLTest() {
-        this(new SSLTestConfig());
+        this(new SSLTestConfig()); // Delegates to the new private constructor
     }
 
     /**
-     * Constructor for dependency injection, primarily for testing purposes.
-     * Allows injecting a pre-configured {@link SSLTestConfig} and subsequently
-     * initializes internal components like {@link CertificateValidator}, 
-     * {@link ResultFormatter}, and {@link ClientCertificateManager} based on this configuration.
+     * Private constructor for default instantiation logic.
+     * This sets up the default dependency chain for the no-argument constructor.
+     *
+     * @param config The {@link SSLTestConfig} instance to use for default setup.
+     */
+    private SSLTest(SSLTestConfig config) {
+        this(config,
+             new CertificateValidator(
+                 config.getKeystoreFile(),
+                 config.getKeystorePassword(),
+                 config,
+                 new org.example.cert.CertificateRevocationChecker(config.isCheckOCSP(), config.isCheckCRL())
+             ),
+             new ResultFormatter(config),
+             new ClientCertificateManager(config)
+        );
+    }
+
+    /**
+     * Primary constructor for dependency injection.
+     * Allows injecting a pre-configured {@link SSLTestConfig} and all major dependencies.
      *
      * @param config The {@link SSLTestConfig} instance to use. Must not be null.
+     * @param certValidator The {@link CertificateValidator} instance.
+     * @param resultFormatter The {@link ResultFormatter} instance.
+     * @param clientCertManager The {@link ClientCertificateManager} instance.
      */
-    public SSLTest(SSLTestConfig config) {
+    public SSLTest(SSLTestConfig config, CertificateValidator certValidator, ResultFormatter resultFormatter, ClientCertificateManager clientCertManager) {
         if (config == null) {
-            // Though Picocli usually instantiates with its own config, defensive check for direct use.
-            logger.warn("SSLTestConfig was null in constructor. Initializing with a new default SSLTestConfig.");
+            logger.warn("SSLTestConfig was null in primary constructor. Initializing with a new default SSLTestConfig. This might not be intended if dependencies are also manually provided.");
             this.config = new SSLTestConfig();
         } else {
             this.config = config;
         }
-        // Initialize core components with the provided or default configuration
-        this.certValidator = new CertificateValidator(this.config.getKeystoreFile(), this.config.getKeystorePassword(), this.config);
-        this.resultFormatter = new ResultFormatter(this.config);
-        this.clientCertManager = new ClientCertificateManager(this.config);
+
+        if (certValidator == null || resultFormatter == null || clientCertManager == null) {
+            // This is a critical issue if dependencies are meant to be injected.
+            // For the default path (via no-arg constructor), this shouldn't happen if the private constructor is correct.
+            logger.error("One or more core dependencies (CertificateValidator, ResultFormatter, ClientCertificateManager) were null in the primary constructor. This indicates an issue in instantiation logic.");
+            // Consider throwing an IllegalArgumentException here if strictness is required.
+            // For now, to match previous behavior where components would initialize themselves:
+            // Fallback to default initialization IF a dependency is null AND config is also null (unlikely scenario but to prevent NPE)
+            // However, the goal of DI is that the caller provides valid dependencies.
+            // If this constructor is called directly with nulls, it's an error by the caller.
+            // The private SSLTest(SSLTestConfig) constructor should ensure non-null dependencies are passed.
+            
+            // Defensive assignment to avoid NPEs, though ideally this path for null dependencies is not hit.
+            this.certValidator = (certValidator != null) ? certValidator : new CertificateValidator(this.config.getKeystoreFile(), this.config.getKeystorePassword(), this.config, new org.example.cert.CertificateRevocationChecker(this.config.isCheckOCSP(), this.config.isCheckCRL()));
+            this.resultFormatter = (resultFormatter != null) ? resultFormatter : new ResultFormatter(this.config);
+            this.clientCertManager = (clientCertManager != null) ? clientCertManager : new ClientCertificateManager(this.config);
+            
+            if (certValidator == null) logger.warn("CertificateValidator was null, re-initialized default.");
+            if (resultFormatter == null) logger.warn("ResultFormatter was null, re-initialized default.");
+            if (clientCertManager == null) logger.warn("ClientCertificateManager was null, re-initialized default.");
+
+        } else {
+            this.certValidator = certValidator;
+            this.resultFormatter = resultFormatter;
+            this.clientCertManager = clientCertManager;
+        }
+        // this.result map is initialized as a field, no change needed here.
     }
 
     /**
@@ -409,7 +449,7 @@ public class SSLTest implements Callable<Integer> {
             certMap.put("validUntil", details.getValidUntil() != null ? DATE_FORMATTER.format(details.getValidUntil().toInstant()) : "N/A");
             certMap.put("signatureAlgorithm", details.getSignatureAlgorithm());
             certMap.put("publicKeyAlgorithm", details.getPublicKeyAlgorithm());
-            certMap.put("subjectAlternativeNames", details.getSubjectAlternativeNames()); // This is already a Map<String,String>
+            certMap.put("subjectAlternativeNames", details.getSubjectAlternativeNames()); // This is now Map<String, List<String>>
             certMap.put("selfSigned", details.isSelfSigned());
             certMap.put("expired", details.isExpired());
             certMap.put("notYetValid", details.isNotYetValid());

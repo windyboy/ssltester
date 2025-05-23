@@ -25,8 +25,13 @@ import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.SingleResp;
 import org.bouncycastle.cert.ocsp.UnknownStatus;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.DigestCalculator;
 import org.bouncycastle.operator.DigestCalculatorProvider;
+import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.bouncycastle.cert.ocsp.ResponderID;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.ocsp.OCSPException;
 import org.example.model.CertificateDetails;
 import org.example.model.RevocationStatus;
 import org.slf4j.Logger;
@@ -42,6 +47,7 @@ import java.net.URL;
 import java.security.Security;
 import java.security.cert.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -227,33 +233,34 @@ public class CertificateRevocationChecker {
             OCSPReq request = builder.build();
             logger.debug("OCSP request constructed for {}.", certId);
 
-            // 3. Send Request
-            HttpURLConnection connection = (HttpURLConnection) new URL(ocspUrl).openConnection();
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/ocsp-request");
-            connection.setRequestProperty("Accept", "application/ocsp-response");
-            connection.setDoOutput(true);
-            connection.setConnectTimeout(5000); 
-            connection.setReadTimeout(5000);    
+            // 3. Send Request and Process Response
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(ocspUrl).openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/ocsp-request");
+                connection.setRequestProperty("Accept", "application/ocsp-response");
+                connection.setDoOutput(true);
+                connection.setConnectTimeout(5000);
+                connection.setReadTimeout(5000);
 
-            try (OutputStream os = connection.getOutputStream()) {
-                os.write(request.getEncoded());
-            }
-            logger.debug("OCSP request sent to {} for {}.", ocspUrl, certId);
+                try (OutputStream os = connection.getOutputStream()) {
+                    os.write(request.getEncoded());
+                }
+                logger.debug("OCSP request sent to {} for {}.", ocspUrl, certId);
 
-            // 4. Receive and Process Response
-            int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                logger.warn("OCSP request to {} for {} failed: HTTP {}", ocspUrl, certId, responseCode);
-                detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
-                detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"OCSP request to " + ocspUrl + " failed: HTTP " + responseCode));
-                return;
-            }
-            logger.debug("OCSP response received from {} for {}. HTTP Status: {}", ocspUrl, certId, responseCode);
+                int responseCode = connection.getResponseCode();
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    logger.warn("OCSP request to {} for {} failed: HTTP {}", ocspUrl, certId, responseCode);
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                    detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "OCSP request to " + ocspUrl + " failed: HTTP " + responseCode));
+                    return;
+                }
+                logger.debug("OCSP response received from {} for {}. HTTP Status: {}", ocspUrl, certId, responseCode);
 
-            try (InputStream is = connection.getInputStream()) {
-                OCSPResp ocspResponse = new OCSPResp(is.readAllBytes());
-                logger.debug("OCSP response status from {}: {} for {}.", ocspUrl, ocspResponse.getStatus(), certId);
+                try (InputStream is = connection.getInputStream()) {
+                    OCSPResp ocspResponse = new OCSPResp(is.readAllBytes());
+                    logger.debug("OCSP response status from {}: {} for {}.", ocspUrl, ocspResponse.getStatus(), certId);
 
 
                 if (ocspResponse.getStatus() != OCSPResp.SUCCESSFUL) {
@@ -271,9 +278,81 @@ public class CertificateRevocationChecker {
                     return;
                 }
 
-                // TODO: Optionally verify BasicOCSPResp signature here using basicResponse.getResponderId(), basicResponse.getSignature(),
-                // and the OCSP responder's certificate. This involves finding the responder's certificate,
-                // which might be included in basicResponse.getCerts() or need separate fetching.
+                // Verify OCSP Response Signature
+                X509CertificateHolder signingCertHolder = null;
+                ResponderID rid = basicResponse.getResponderId();
+                X509CertificateHolder[] responderCerts = basicResponse.getCerts();
+
+                if (responderCerts != null && responderCerts.length > 0) {
+                    logger.debug("Found {} certificate(s) in OCSP response. Attempting to match ResponderID.", responderCerts.length);
+                    ASN1Primitive ridPrimitive = rid.toASN1Primitive();
+                    for (X509CertificateHolder certHolderFromResponse : responderCerts) {
+                        if (ridPrimitive instanceof X500Name) { // ResponderID is by Name
+                            X500Name responderName = X500Name.getInstance(ridPrimitive);
+                            if (certHolderFromResponse.getSubject().equals(responderName)) {
+                                signingCertHolder = certHolderFromResponse;
+                                logger.debug("Matched OCSP responder by subject name: {}", responderName);
+                                break;
+                            }
+                        } else if (ridPrimitive instanceof ASN1OctetString) { // ResponderID is by KeyHash
+                            ASN1OctetString responderKeyHash = (ASN1OctetString) ridPrimitive;
+                            try {
+                                DigestCalculatorProvider dcp = new JcaDigestCalculatorProviderBuilder().setProvider(BouncyCastleProvider.PROVIDER_NAME).build();
+                                DigestCalculator digestCalculator = dcp.get(CertificateID.HASH_SHA1); // OCSP key hashes are typically SHA-1
+                                OutputStream outputStream = digestCalculator.getOutputStream();
+                                outputStream.write(certHolderFromResponse.getSubjectPublicKeyInfo().getEncoded("DER")); // Key to hash
+                                outputStream.close();
+                                byte[] calculatedKeyHash = digestCalculator.getDigest();
+                                if (Arrays.equals(responderKeyHash.getOctets(), calculatedKeyHash)) {
+                                    signingCertHolder = certHolderFromResponse;
+                                    logger.debug("Matched OCSP responder by subject public key hash.");
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                logger.error("Error calculating hash for OCSP responder cert {}: {}", certHolderFromResponse.getSubject(), e.getMessage(), e);
+                            }
+                        }
+                    }
+                    if (signingCertHolder == null) {
+                        logger.warn("Could not match ResponderID with any certificate in the OCSP response. Will try issuer certificate.");
+                    }
+                }
+
+                if (signingCertHolder == null) { // If no cert from response matched or no certs in response
+                    logger.debug("No specific signing cert found in OCSP response or no match. Using issuer certificate to verify OCSP signature.");
+                    try {
+                        signingCertHolder = new JcaX509CertificateHolder(issuerCert);
+                    } catch (CertificateEncodingException e) {
+                        logger.error("Failed to convert issuer certificate to X509CertificateHolder for OCSP signature check: {}", e.getMessage(), e);
+                        detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                        detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "Failed to prepare issuer cert for OCSP signature validation: " + e.getMessage()));
+                        return;
+                    }
+                }
+
+                if (signingCertHolder != null) {
+                    try {
+                        if (!basicResponse.isSignatureValid(signingCertHolder)) {
+                            logger.warn("OCSP response signature verification FAILED for {} using responder cert: {}", certId, signingCertHolder.getSubject());
+                            detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                            detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "OCSP response signature is invalid."));
+                            return; // Do not trust this response
+                        }
+                        logger.info("OCSP response signature VERIFIED successfully for {} using responder cert: {}", certId, signingCertHolder.getSubject());
+                    } catch (OCSPException | OperatorCreationException e) {
+                        logger.error("Error during OCSP signature verification for {}: {}", certId, e.getMessage(), e);
+                        detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                        detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "Error verifying OCSP response signature: " + e.getMessage()));
+                        return; // Error during verification
+                    }
+                } else {
+                    // This case should not be reached if issuerCert fallback is always attempted and succeeds in conversion.
+                    // However, if issuerCert conversion itself failed and no certs in response, this could be hit.
+                    logger.warn("No OCSP responder certificate (neither from response nor issuer) available to verify signature for {}.", certId);
+                    detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
+                    detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(), "No OCSP responder certificate available to verify signature."));
+                    return; // Cannot verify signature
+                }
 
                 boolean statusFound = false;
                 for (SingleResp singleResponse : basicResponse.getResponses()) {
@@ -313,6 +392,10 @@ public class CertificateRevocationChecker {
             logger.error("Exception during OCSP check process for {} (URL: {}): {}", certId, ocspUrl, e.getMessage(), e);
             detailsToUpdate.setRevocationStatus(RevocationStatus.UNKNOWN);
             detailsToUpdate.setFailureReason(appendFailureReason(detailsToUpdate.getFailureReason(),"Exception during OCSP check with " + ocspUrl + ": " + e.getMessage()));
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 
@@ -348,12 +431,13 @@ public class CertificateRevocationChecker {
 
         for (String crlUrl : crlUrls) {
             logger.info("Attempting CRL check for {} using CRL: {}", certId, crlUrl);
+            HttpURLConnection connection = null;
             try {
                 // 1. Download CRL
-                HttpURLConnection connection = (HttpURLConnection) new URL(crlUrl).openConnection();
+                connection = (HttpURLConnection) new URL(crlUrl).openConnection();
                 connection.setRequestMethod("GET");
-                connection.setConnectTimeout(5000); 
-                connection.setReadTimeout(5000);    
+                connection.setConnectTimeout(5000);
+                connection.setReadTimeout(5000);
 
                 int responseCode = connection.getResponseCode();
                 if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -404,9 +488,13 @@ public class CertificateRevocationChecker {
                 }
                 return; // Definitive GOOD status found from a valid CRL.
 
-            } catch (Exception e) { 
+            } catch (Exception e) {
                 logger.error("Exception during CRL processing for {} from URL {}: {}", certId, crlUrl, e.getMessage(), e);
                 accumulatedCrlFailureReasons = appendFailureReason(accumulatedCrlFailureReasons, "CRL " + crlUrl + " processing error: " + e.getMessage() + ". ");
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
             }
         }
 

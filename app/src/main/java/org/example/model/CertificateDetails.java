@@ -26,8 +26,8 @@ public class CertificateDetails {
     private String signatureAlgorithm;
     /** The algorithm of the public key contained in the certificate. */
     private String publicKeyAlgorithm;
-    /** A map of Subject Alternative Names (SANs), where the key is the SAN type (as a string) and value is the SAN value. */
-    private Map<String, String> subjectAlternativeNames;
+    /** A map of Subject Alternative Names (SANs), where the key is the SAN type (as a string) and value is a list of SAN values. */
+    private Map<String, List<String>> subjectAlternativeNames;
     /** True if the certificate is self-signed (issuer and subject are the same), false otherwise. */
     private boolean selfSigned;
     /** True if the certificate has expired based on the current date and its 'validUntil' field, false otherwise. */
@@ -74,7 +74,7 @@ public class CertificateDetails {
      */
     public CertificateDetails(String subjectDN, String issuerDN, int version, String serialNumber,
                               Date validFrom, Date validUntil, String signatureAlgorithm,
-                              String publicKeyAlgorithm, Map<String, String> subjectAlternativeNames,
+                              String publicKeyAlgorithm, Map<String, List<String>> subjectAlternativeNames,
                               boolean selfSigned, boolean expired, boolean notYetValid,
                               TrustStatus trustStatus, RevocationStatus revocationStatus,
                               String ocspResponderUrl, List<String> crlDistributionPoints,
@@ -166,9 +166,9 @@ public class CertificateDetails {
 
     /**
      * Gets the Subject Alternative Names (SANs) from the certificate.
-     * @return A map of SANs, where key is type and value is the name.
+     * @return A map of SANs, where key is type and value is a list of names.
      */
-    public Map<String, String> getSubjectAlternativeNames() {
+    public Map<String, List<String>> getSubjectAlternativeNames() {
         return subjectAlternativeNames;
     }
 
@@ -304,9 +304,9 @@ public class CertificateDetails {
 
     /**
      * Sets the Subject Alternative Names (SANs) for the certificate.
-     * @param subjectAlternativeNames A map of SANs.
+     * @param subjectAlternativeNames A map of SANs, where key is type and value is a list of names.
      */
-    public void setSubjectAlternativeNames(Map<String, String> subjectAlternativeNames) {
+    public void setSubjectAlternativeNames(Map<String, List<String>> subjectAlternativeNames) {
         this.subjectAlternativeNames = subjectAlternativeNames;
     }
 

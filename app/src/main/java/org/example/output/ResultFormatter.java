@@ -194,10 +194,18 @@ public class ResultFormatter {
 
                 // Subject Alternative Names (SANs)
                 Object sansObj = certMap.get("subjectAlternativeNames");
-                if (sansObj instanceof Map<?, ?> sansMap && !sansMap.isEmpty()) {
-                    sb.append("    Subject Alternative Names:\n");
-                    for (Map.Entry<?, ?> sanEntry : sansMap.entrySet()) {
-                        sb.append("        Type ").append(sanEntry.getKey()).append(": ").append(sanEntry.getValue()).append("\n");
+                if (sansObj instanceof Map<?, ?> rawSansMap) {
+                    @SuppressWarnings("unchecked") // Ensure this cast is safe or handle appropriately
+                    Map<String, List<String>> sansMap = (Map<String, List<String>>) rawSansMap;
+                    if (!sansMap.isEmpty()) {
+                        sb.append("    Subject Alternative Names:\n");
+                        for (Map.Entry<String, List<String>> sanTypeEntry : sansMap.entrySet()) {
+                            String typeKey = sanTypeEntry.getKey(); // This is the SAN type number as a String
+                            List<String> sanValues = sanTypeEntry.getValue();
+                            for (String sanValue : sanValues) {
+                                sb.append("        Type ").append(typeKey).append(": ").append(sanValue).append("\n");
+                            }
+                        }
                     }
                 }
             }

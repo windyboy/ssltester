@@ -64,21 +64,25 @@ public class CertificateValidator {
      *                          If null, the system's default truststore will be used.
      * @param keystorePassword  The password for the custom keystore. May be null if the keystore
      *                          does not require a password or if {@code keystoreFile} is null.
-     * @param config            The {@link SSLTestConfig} object which provides settings for enabling/disabling
-     *                          OCSP and CRL checks via its {@code isCheckOCSP()} and {@code isCheckCRL()} methods.
-     *                          If {@code config} is null, OCSP checks will be enabled and CRL checks will be disabled by default.
+     * @param config            The {@link SSLTestConfig} object, which might be used for other configurations or logging.
+     * @param revocationChecker An instance of {@link CertificateRevocationChecker} for performing OCSP/CRL checks.
      */
-    public CertificateValidator(File keystoreFile, String keystorePassword, SSLTestConfig config) {
+    public CertificateValidator(File keystoreFile, String keystorePassword, SSLTestConfig config, CertificateRevocationChecker revocationChecker) {
         this.keystoreFile = keystoreFile;
         this.keystorePassword = keystorePassword;
-        if (config == null) {
-            logger.warn("SSLTestConfig is null for CertificateValidator constructor. Defaulting OCSP to true and CRL to false for CertificateRevocationChecker.");
-            this.revocationChecker = new CertificateRevocationChecker(true, false);
-        } else {
-            this.revocationChecker = new CertificateRevocationChecker(config.isCheckOCSP(), config.isCheckCRL());
-            // Logging for revocationChecker's specific settings is handled in its own constructor.
+        this.revocationChecker = revocationChecker; // Use the injected instance
+
+        if (revocationChecker == null) {
+            // This case should ideally be prevented by the caller, but as a safeguard:
+            logger.error("CertificateRevocationChecker instance is null in CertificateValidator constructor. Revocation checks will not be performed correctly.");
+            // Depending on desired strictness, could throw IllegalArgumentException here.
+            // For now, logging an error and continuing; behavior of revocationChecker.checkRevocation will be NPE if not handled.
         }
-        logger.info("CertificateValidator initialized. Custom keystore: {}", keystoreFile != null ? keystoreFile.getAbsolutePath() : "Using System Default");
+        
+        // Logging related to config can remain if config is used for other things.
+        // If config is only for revocation settings, this log might need adjustment or could be removed if config is removed.
+        logger.info("CertificateValidator initialized. Custom keystore: {}. Revocation checker has been provided.", 
+                    keystoreFile != null ? keystoreFile.getAbsolutePath() : "Using System Default");
     }
 
     /**
@@ -138,7 +142,8 @@ public class CertificateValidator {
         checkSystemTime();
 
         // Check cache for existing validation result to avoid re-computation
-        String certKey = getCertificateKey(x509Certs[0]);
+        // The cache key is generated using the serial number and issuer DN of the end-entity certificate.
+        String certKey = x509Certs[0].getSerialNumber().toString(16) + "_" + x509Certs[0].getIssuerX500Principal().getName();
         List<CertificateDetails> cachedResult = CERTIFICATE_CACHE.get(certKey);
         if (cachedResult != null) {
             logger.info("Certificate chain for {} found in cache.", firstCertSubject);
@@ -189,17 +194,18 @@ public class CertificateValidator {
                 try {
                     var sans = cert.getSubjectAlternativeNames(); // Collection<List<?>>
                     if (sans != null) {
-                        Map<String, String> sanMap = new HashMap<>();
+                        Map<String, List<String>> sanMap = new HashMap<>();
                         for (List<?> sanEntry : sans) { // Each entry is a List [Integer type, String value]
                             if (sanEntry.size() == 2) { // Ensure the entry is a pair
                                 Integer type = (Integer) sanEntry.get(0);
                                 String value = (String) sanEntry.get(1);
-                                sanMap.put(type.toString(), value);
+                                List<String> sansForType = sanMap.computeIfAbsent(type.toString(), k -> new ArrayList<>());
+                                sansForType.add(value);
                             }
                         }
                         details.setSubjectAlternativeNames(sanMap);
                     }
-                } catch (CertificateParsingException e) {
+                } catch (java.security.cert.CertificateParsingException e) { // More specific exception type
                     logger.warn("Failed to parse Subject Alternative Names for cert {}: {}", cert.getSubjectX500Principal(), e.getMessage());
                     details.setFailureReason((details.getFailureReason() == null ? "" : details.getFailureReason() + "; ") + "Error parsing SANs: " + e.getMessage());
                 }
@@ -299,15 +305,16 @@ public class CertificateValidator {
                      try {
                         var sans = cert.getSubjectAlternativeNames();
                         if (sans != null) {
-                            Map<String, String> sanMap = new HashMap<>();
+                            Map<String, List<String>> sanMap = new HashMap<>();
                             for (var sanItem : sans) { // Corrected variable name from san to sanItem
                                 Integer type = (Integer) sanItem.get(0);
                                 String value = (String) sanItem.get(1);
-                                sanMap.put(type.toString(), value);
+                                List<String> sansForType = sanMap.computeIfAbsent(type.toString(), k -> new ArrayList<>());
+                                sansForType.add(value);
                             }
                             details.setSubjectAlternativeNames(sanMap);
                         }
-                    } catch (CertificateParsingException sanEx) {
+                    } catch (java.security.cert.CertificateParsingException sanEx) { // More specific exception type
                         logger.warn("Failed to parse Subject Alternative Names for cert {} during error handling: {}", cert.getSubjectX500Principal(), sanEx.getMessage());
                     }
                     details.setSelfSigned(cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal()));
@@ -337,48 +344,8 @@ public class CertificateValidator {
         }
     }
 
-    /**
-     * Generates a unique key for a certificate, used for caching.
-     * The key is a combination of the certificate's serial number and issuer's X.500 principal name.
-     *
-     * @param cert The {@link X509Certificate} to generate a key for.
-     * @return A unique string key for the certificate.
-     */
-    private String getCertificateKey(X509Certificate cert) {
-                details.setIssuerDN(cert.getIssuerX500Principal().getName());
-                details.setVersion(cert.getVersion());
-                details.setSerialNumber(cert.getSerialNumber().toString(16).toUpperCase());
-                details.setValidFrom(cert.getNotBefore());
-                details.setValidUntil(cert.getNotAfter());
-                details.setSignatureAlgorithm(cert.getSigAlgName());
-                details.setPublicKeyAlgorithm(cert.getPublicKey().getAlgorithm());
-                 var sans = cert.getSubjectAlternativeNames();
-                if (sans != null) {
-                    Map<String, String> sanMap = new HashMap<>();
-                    for (var san : sans) {
-                        Integer type = (Integer) san.get(0);
-                        String value = (String) san.get(1);
-                        sanMap.put(type.toString(), value);
-                    }
-                    details.setSubjectAlternativeNames(sanMap);
-                }
-                details.setSelfSigned(cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal()));
-                details.setExpired(cert.getNotAfter().before(new Date()));
-                details.setNotYetValid(cert.getNotBefore().after(new Date()));
-                details.setTrustStatus(TrustStatus.NOT_TRUSTED);
-                details.setRevocationStatus(RevocationStatus.NOT_CHECKED);
-                details.setFailureReason(e.getMessage()); // Main reason for chain failure
-                certificateDetailsList.add(details);
-            }
-            // Do not cache if validation failed with an exception that makes the whole chain untrusted.
-            // Or cache it with a specific marker if that's desired. For now, not caching failures.
-            throw e; // Re-throw original exception
-        }
-    }
-
-    private String getCertificateKey(X509Certificate cert) {
-        return cert.getSerialNumber().toString(16) + "_" + cert.getIssuerX500Principal().getName();
-    }
+    // The getCertificateKey method was removed as its logic is now inlined at the call site within validateCertificateChain.
+    // This was done to remove an unused method that also contained duplicated (and incorrect) code fragments from another part of the class.
 
     private TrustManagerFactory initializeTrustManagerFactory() throws CertificateException {
         try {
