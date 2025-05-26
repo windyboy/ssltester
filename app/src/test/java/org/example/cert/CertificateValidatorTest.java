@@ -91,7 +91,7 @@ class CertificateValidatorTest {
         Certificate[] certs = new Certificate[]{testCertificate};
 
         // Test validation
-        X509Certificate[] validatedCerts = validator.validateCertificateChain(certs);
+        X509Certificate[] validatedCerts = validator.validateCertificateChain(certs, "RSA");
 
         assertNotNull(validatedCerts);
         assertEquals(certs.length, validatedCerts.length);
@@ -104,7 +104,7 @@ class CertificateValidatorTest {
 
         // Test validation
         assertThrows(CertificateException.class, () ->
-            validator.validateCertificateChain(invalidCerts)
+            validator.validateCertificateChain(invalidCerts, "RSA")
         );
     }
 
