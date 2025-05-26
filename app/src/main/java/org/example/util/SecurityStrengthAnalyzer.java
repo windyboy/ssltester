@@ -51,10 +51,12 @@ public class SecurityStrengthAnalyzer {
         // Normalize the protocol version for comparison
         String normalizedProtocol = protocolVersion.toUpperCase().replaceAll("\\s+", "");
         
-        // Check for strong protocols first
-        if (normalizedProtocol.equals("TLSV1.2") || normalizedProtocol.equals("TLS1.2") ||
-            normalizedProtocol.equals("TLSV1.3") || normalizedProtocol.equals("TLS1.3")) {
-            return STRENGTH_STRONG;
+        // Check for strong protocols
+        for (String strong : STRONG_PROTOCOLS) {
+            if (normalizedProtocol.equals(strong) || 
+                normalizedProtocol.equals(strong.replace("V", ""))) {
+                return STRENGTH_STRONG;
+            }
         }
         
         // Check for weak protocols
