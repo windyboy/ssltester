@@ -10,9 +10,6 @@ import java.io.File;
 import java.net.IDN;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.net.IDN;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -114,7 +111,6 @@ public class CertificateValidator {
             if (keystoreFile != null) {
                 KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                 ks.load(keystoreFile.toURI().toURL().openStream(),
-                ks.load(keystoreFile.toURI().toURL().openStream(),
                         keystorePassword != null ? keystorePassword.toCharArray() : null);
                 tmf.init(ks);
             } else {
@@ -143,7 +139,6 @@ public class CertificateValidator {
 
     public Map<String, Object> getCertificateInfo(X509Certificate cert) throws Exception {
         Map<String, Object> certInfo = new HashMap<>();
-
 
         String subjectDN = cert.getSubjectX500Principal().getName();
         String issuerDN = cert.getIssuerX500Principal().getName();
@@ -236,20 +231,9 @@ public class CertificateValidator {
 
             // 回退到Subject DN中的Common Name (CN)
             // 注意：这仅为了兼容性，现代证书应使用SAN
-            // 如果是IP地址但没有匹配的SAN IP项，则失败
-            if (isIpAddress) {
-                return false;
-            }
-
-            // 回退到Subject DN中的Common Name (CN)
-            // 注意：这仅为了兼容性，现代证书应使用SAN
             String subjectDN = cert.getSubjectX500Principal().getName();
             String[] parts = subjectDN.split(",");
             for (String part : parts) {
-                if (part.trim().startsWith("CN=")) {
-                    String cn = part.substring(3).trim();
-                    if (matchesHostname(cn, normalizedHostname)) {
-                        logger.debug("Hostname {} matched with CN: {}", normalizedHostname, cn);
                 if (part.trim().startsWith("CN=")) {
                     String cn = part.substring(3).trim();
                     if (matchesHostname(cn, normalizedHostname)) {
@@ -317,15 +301,6 @@ public class CertificateValidator {
         }
 
         // 通配符匹配逻辑
-        // 标准化模式和主机名
-        pattern = normalizeHostname(pattern);
-
-        // 直接匹配
-        if (pattern.equals(hostname)) {
-            return true;
-        }
-
-        // 通配符匹配逻辑
         if (pattern.startsWith("*.")) {
             // 通配符只能在最左边的部分
             if (pattern.indexOf('*', 1) != -1) {
@@ -343,22 +318,6 @@ public class CertificateValidator {
 
             // 检查主机名是否以模式后缀结尾
             if (!hostname.endsWith(suffix)) {
-            // 通配符只能在最左边的部分
-            if (pattern.indexOf('*', 1) != -1) {
-                return false;
-            }
-
-            // 提取通配符后的部分
-            String suffix = pattern.substring(1); // 得到 ".example.com"
-
-            // 验证主机名是否包含足够的部分
-            int dots = countDots(hostname);
-            if (dots < 1) {
-                return false; // 需要至少一个点才能匹配通配符
-            }
-
-            // 检查主机名是否以模式后缀结尾
-            if (!hostname.endsWith(suffix)) {
                 return false;
             }
 
@@ -366,15 +325,7 @@ public class CertificateValidator {
             String prefix = hostname.substring(0, hostname.length() - suffix.length());
             if (prefix.contains(".")) {
                 return false; // 不允许通配符跨越多个域级别
-
-            // 确保通配符只匹配到下一个点之前的部分
-            String prefix = hostname.substring(0, hostname.length() - suffix.length());
-            if (prefix.contains(".")) {
-                return false; // 不允许通配符跨越多个域级别
             }
-
-            // 通过所有检查
-            return true;
 
             // 通过所有检查
             return true;
@@ -385,13 +336,5 @@ public class CertificateValidator {
 
     private int countDots(String s) {
         return (int) s.chars().filter(c -> c == '.').count();
-
-        return false;
     }
-
-    private int countDots(String s) {
-        return (int) s.chars().filter(c -> c == '.').count();
-    }
-}
-
 }
