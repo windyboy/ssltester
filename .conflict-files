@@ -1,0 +1,3 @@
+ancestorEntries = ["app/src/main/java/org/example/cert/CertificateValidator.java"]
+ourEntries = ["app/src/main/java/org/example/cert/CertificateValidator.java"]
+theirEntries = ["app/src/main/java/org/example/cert/CertificateValidator.java"]
