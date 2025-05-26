@@ -19,12 +19,12 @@ repositories {
 
 dependencies {
     // Picocli for command line argument parsing
-    implementation("info.picocli:picocli:4.7.5")
-    annotationProcessor("info.picocli:picocli-codegen:4.7.5")
+    implementation(libs.picocli)
+    annotationProcessor(libs.picocli.codegen)
     
     // JSON support
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.dataformat.yaml)
     
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.11")
@@ -41,7 +41,8 @@ testing {
         // Configure the built-in test suite
         val test by getting(JvmTestSuite::class) {
             // Use JUnit Jupiter test framework
-            useJUnitJupiter("5.12.1")
+            // Version "5.10.0" is aligned with libs.versions.toml (versions.junitJupiter)
+            useJUnitJupiter("5.10.0") 
         }
     }
 }

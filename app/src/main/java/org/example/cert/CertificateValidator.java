@@ -4,21 +4,32 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.CertPathTrustManagerParameters;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import java.io.File;
+import java.io.InputStream;
 import java.net.IDN;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.PKIXBuilderParameters;
+import java.security.cert.X509CertSelector;
 import java.security.cert.X509Certificate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -56,7 +67,7 @@ public class CertificateValidator {
         }
     }
 
-    public X509Certificate[] validateCertificateChain(Certificate[] certs) throws CertificateException {
+    public X509Certificate[] validateCertificateChain(Certificate[] certs, String authTypeFromCipher) throws CertificateException {
         if (certs == null || certs.length == 0) {
             throw new CertificateException("No certificates provided");
         }
@@ -64,7 +75,9 @@ public class CertificateValidator {
         // 检查系统时间
         checkSystemTime();
 
-        X509Certificate[] x509Certs = Arrays.copyOf(certs, certs.length, X509Certificate[].class);
+        X509Certificate[] x509Certs = Arrays.stream(certs)
+                .map(cert -> (X509Certificate) cert)
+                .toArray(X509Certificate[]::new);
         
         // 检查缓存
         String certKey = getCertificateKey(x509Certs[0]);
@@ -81,11 +94,8 @@ public class CertificateValidator {
         TrustManagerFactory tmf = initializeTrustManagerFactory();
         X509TrustManager tm = findX509TrustManager(tmf);
 
-        String sigAlg = x509Certs[0].getSigAlgName();
-        String auth = determineAuthType(sigAlg);
-
         try {
-            tm.checkServerTrusted(x509Certs, auth);
+            tm.checkServerTrusted(x509Certs, authTypeFromCipher);
             logger.info("→ Certificate chain trusted");
             CERTIFICATE_CACHE.put(certKey, true);
 
@@ -107,21 +117,71 @@ public class CertificateValidator {
 
     private TrustManagerFactory initializeTrustManagerFactory() throws CertificateException {
         try {
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance("PKIX");
+            PKIXBuilderParameters pkixParams;
+
             if (keystoreFile != null) {
+                logger.debug("Using custom keystore: {}", keystoreFile.getAbsolutePath());
                 KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                 ks.load(keystoreFile.toURI().toURL().openStream(),
                         keystorePassword != null ? keystorePassword.toCharArray() : null);
                 tmf.init(ks);
+                pkixParams = new PKIXBuilderParameters(ks, new X509CertSelector());
             } else {
-                tmf.init((KeyStore) null);
+                logger.debug("Using system default truststore.");
+                KeyStore systemTrustStore = getSystemTrustStore();
+                pkixParams = new PKIXBuilderParameters(systemTrustStore, new X509CertSelector());
             }
+
+            pkixParams.setRevocationEnabled(true);
+            logger.debug("Revocation checking enabled in PKIXBuilderParameters.");
+
+            tmf.init(new CertPathTrustManagerParameters(pkixParams));
             return tmf;
         } catch (Exception e) {
-            throw new CertificateException("Failed to initialize trust manager: " + e.getMessage(), e);
+            throw new CertificateException("Failed to initialize PKIX trust manager: " + e.getMessage(), e);
         }
     }
 
+    /**
+     * Loads the default system truststore (either 'jssecacerts' or 'cacerts' from the JRE's security directory).
+     *
+     * @return The loaded {@link KeyStore} object representing the system truststore.
+     * @throws CertificateException If the truststore file cannot be found, loaded, or if there's a KeyStore error.
+     */
+    private KeyStore getSystemTrustStore() throws CertificateException {
+        try {
+            String javaHome = System.getProperty("java.home");
+            Path trustStorePath = Paths.get(javaHome, "lib", "security", "jssecacerts");
+            if (!Files.exists(trustStorePath)) {
+                trustStorePath = Paths.get(javaHome, "lib", "security", "cacerts");
+            }
+
+            if (!Files.exists(trustStorePath)) {
+                throw new CertificateException("Could not find jssecacerts or cacerts in " + javaHome);
+            }
+            logger.debug("Loading system truststore from: {}", trustStorePath);
+
+            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            try (InputStream fis = Files.newInputStream(trustStorePath)) {
+                // Default password for cacerts is "changeit"
+                trustStore.load(fis, "changeit".toCharArray());
+            }
+            return trustStore;
+        } catch (KeyStoreException e) {
+             throw new CertificateException("Failed to instantiate KeyStore for system truststore: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new CertificateException("Failed to load system truststore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Finds and returns an {@link X509TrustManager} from the provided {@link TrustManagerFactory}.
+     *
+     * @param tmf The {@link TrustManagerFactory} from which to extract the trust manager.
+     * @return The first {@link X509TrustManager} found.
+     * @throws CertificateException If no X509TrustManager is found in the factory.
+     */
     private X509TrustManager findX509TrustManager(TrustManagerFactory tmf) throws CertificateException {
         for (TrustManager tm : tmf.getTrustManagers()) {
             if (tm instanceof X509TrustManager) {
@@ -133,12 +193,24 @@ public class CertificateValidator {
 
     private String determineAuthType(String sigAlg) {
         // 简化认证类型判断
-        return sigAlg.toUpperCase().contains("ECDSA") ? "ECDHE_ECDSA" : 
+        String authType = sigAlg.toUpperCase().contains("ECDSA") ? "ECDHE_ECDSA" : 
                sigAlg.toUpperCase().contains("RSA") ? "RSA" : sigAlg;
+        return authType;
     }
 
+    /**
+     * Extracts detailed information from a given X.509 certificate.
+     * Information includes Subject DN, Issuer DN, version, serial number, validity period,
+     * signature algorithm, public key algorithm, and Subject Alternative Names (SANs).
+     *
+     * @param cert The {@link X509Certificate} to extract information from.
+     * @return A {@link Map} where keys are descriptive strings (e.g., "subjectDN", "serialNumber")
+     *         and values are the corresponding certificate details.
+     * @throws Exception If there's an error parsing the certificate (e.g., {@link java.security.cert.CertificateEncodingException}).
+     */
     public Map<String, Object> getCertificateInfo(X509Certificate cert) throws Exception {
         Map<String, Object> certInfo = new HashMap<>();
+
 
         String subjectDN = cert.getSubjectX500Principal().getName();
         String issuerDN = cert.getIssuerX500Principal().getName();
@@ -291,6 +363,20 @@ public class CertificateValidator {
         }
     }
 
+    /**
+     * Matches a given hostname against a pattern, which can be an exact domain name or a wildcard domain name.
+     * Wildcard logic:
+     * <ul>
+     *   <li>A pattern like "*.example.com" matches "www.example.com" but not "example.com" or "sub.www.example.com".</li>
+     *   <li>The wildcard '*' must represent a single domain label and cannot include dots.</li>
+     *   <li>Patterns like "*" or "*." are considered invalid.</li>
+     *   <li>Matching is case-insensitive.</li>
+     * </ul>
+     *
+     * @param pattern  The pattern from the certificate's SAN or CN (e.g., "example.com", "*.example.com").
+     * @param hostname The hostname to match against the pattern.
+     * @return {@code true} if the hostname matches the pattern, {@code false} otherwise.
+     */
     private boolean matchesHostname(String pattern, String hostname) {
         // 标准化模式和主机名
         pattern = normalizeHostname(pattern);

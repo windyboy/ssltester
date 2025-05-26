@@ -13,16 +13,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
+/**
+ * Handles the formatting of SSL/TLS test results into various output formats
+ * (TEXT, JSON, YAML) and directs the output to the configured destination,
+ * which can be a file or the standard console.
+ */
 public class ResultFormatter {
     private static final Logger logger = LoggerFactory.getLogger(ResultFormatter.class);
     private final ObjectMapper jsonMapper = new ObjectMapper();
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
     private final SSLTestConfig config;
 
+    /**
+     * Constructs a ResultFormatter with the given SSLTestConfig.
+     * The configuration is used to determine output format, destination, and verbosity.
+     *
+     * @param config The SSLTestConfig containing output settings.
+     */
     public ResultFormatter(SSLTestConfig config) {
         this.config = config;
     }
 
+    /**
+     * Formats the provided result map into the configured output format (TEXT, JSON, or YAML)
+     * and writes it to the specified output file or to the console if no file is set.
+     *
+     * For TEXT format, it generates a human-readable string representation of the map.
+     * For JSON and YAML, it uses Jackson library for pretty-printed output.
+     *
+     * @param result The map containing the test results to be formatted and output.
+     */
     public void formatAndOutput(Map<String, Object> result) {
         try {
             String output;
@@ -59,11 +79,12 @@ public class ResultFormatter {
                 } catch (IOException e) {
                     logger.error("Error writing to output file", e);
                 }
+                logger.info("Results written to: {}", config.getOutputFile().getAbsolutePath());
             } else {
-                System.out.println(output);
+                System.out.print(output); // Use print for consistency
             }
         } catch (Exception e) {
-            logger.error("输出结果时发生错误: {}", e.getMessage());
+            logger.error("Error writing results: {}", e.getMessage(), e); // English error message
         }
     }
 
@@ -196,7 +217,7 @@ public class ResultFormatter {
     public void logError(String message, Throwable cause, int exitCode) {
         logger.error("❌ {}", message);
         if (cause != null && config.isVerbose()) {
-            logger.error("详细错误信息:", cause);
+            logger.error("Detailed error information:", cause);
         }
     }
 }
