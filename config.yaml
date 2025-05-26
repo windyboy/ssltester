@@ -1,0 +1,21 @@
+# SSL Test Configuration
+connectionTimeout: 10000
+readTimeout: 10000
+followRedirects: true
+verbose: true
+format: YAML
+checkOCSP: true
+checkCRL: true
+
+# Optional keystore configuration
+# keystoreFile: /path/to/keystore.jks
+# keystorePassword: your_password
+
+# Optional client certificate configuration
+# clientCertFile: /path/to/client.crt
+# clientKeyFile: /path/to/client.key
+# clientKeyPassword: your_key_password
+# clientCertFormat: PEM  # or DER
+
+# Optional output configuration
+# outputFile: /path/to/output.yaml 

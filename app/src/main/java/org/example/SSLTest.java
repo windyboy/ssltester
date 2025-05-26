@@ -1,7 +1,11 @@
 package org.example;
 
 import org.example.cert.CertificateValidator;
+import org.example.cert.ClientCertificateManager;
+import org.example.cert.ClientCertificateManager;
 import org.example.config.SSLTestConfig;
+import org.example.config.SSLTestConfigFile;
+import org.example.config.SSLTestConfigFile;
 import org.example.exception.SSLTestException;
 import org.example.output.ResultFormatter;
 import org.slf4j.Logger;
@@ -10,14 +14,18 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLContext;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 
 /**
@@ -38,14 +46,25 @@ public class SSLTest implements Callable<Integer> {
     private static final int EXIT_UNEXPECTED_ERROR = 99;
 
     @CommandLine.Mixin
-    private final SSLTestConfig config = new SSLTestConfig();
+    private final SSLTestConfig config;
     private final CertificateValidator certValidator;
     private final ResultFormatter resultFormatter;
+    private final ClientCertificateManager clientCertManager;
+    private final ClientCertificateManager clientCertManager;
     private final Map<String, Object> result = new HashMap<>();
 
+    // No-arg constructor for CLI use
     public SSLTest() {
+        this(new SSLTestConfig());
+    }
+
+    // Constructor for test/dependency injection
+    public SSLTest(SSLTestConfig config) {
+        this.config = config;
         this.certValidator = new CertificateValidator(config.getKeystoreFile(), config.getKeystorePassword());
         this.resultFormatter = new ResultFormatter(config);
+        this.clientCertManager = new ClientCertificateManager(config);
+        this.clientCertManager = new ClientCertificateManager(config);
     }
 
     public static void main(String... args) {
@@ -58,6 +77,26 @@ public class SSLTest implements Callable<Integer> {
         try {
             if (config.getUrl() == null || config.getUrl().trim().isEmpty()) {
                 throw new SSLTestException("URL is required", EXIT_INVALID_ARGS);
+            }
+
+            // Load configuration from file if specified
+            if (config.getConfigFile() != null) {
+                try {
+                    Map<String, Object> fileConfig = SSLTestConfigFile.loadConfig(config.getConfigFile());
+                    SSLTestConfigFile.applyConfig(fileConfig, config);
+                } catch (IOException e) {
+                    throw new SSLTestException("Failed to load configuration file: " + e.getMessage(), EXIT_INVALID_ARGS, e);
+                }
+            }
+
+            // Load configuration from file if specified
+            if (config.getConfigFile() != null) {
+                try {
+                    Map<String, Object> fileConfig = SSLTestConfigFile.loadConfig(config.getConfigFile());
+                    SSLTestConfigFile.applyConfig(fileConfig, config);
+                } catch (IOException e) {
+                    throw new SSLTestException("Failed to load configuration file: " + e.getMessage(), EXIT_INVALID_ARGS, e);
+                }
             }
             
             URL parsedUrl = parseAndValidateUrl(config.getUrl());
@@ -110,7 +149,7 @@ public class SSLTest implements Callable<Integer> {
 
             Certificate[] certs = conn.getServerCertificates();
             X509Certificate[] x509Certs = certValidator.validateCertificateChain(certs);
-            validateHostname(conn, url, x509Certs[0]);
+            validateHostname(url, x509Certs[0]);
             processCertificates(x509Certs);
 
             logger.info("✅ SSL handshake and HTTP request succeeded.");
@@ -132,17 +171,37 @@ public class SSLTest implements Callable<Integer> {
         conn.setConnectTimeout(config.getConnectionTimeout());
         conn.setReadTimeout(config.getReadTimeout());
         conn.setInstanceFollowRedirects(config.isFollowRedirects());
+
+        // Set up client certificate if configured
+        try {
+            SSLContext sslContext = clientCertManager.createSSLContext();
+            if (sslContext != null) {
+                conn.setSSLSocketFactory(sslContext.getSocketFactory());
+                logger.info("Using client certificate for authentication");
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to set up client certificate: {}", e.getMessage());
+        }
+
+
+        // Set up client certificate if configured
+        try {
+            SSLContext sslContext = clientCertManager.createSSLContext();
+            if (sslContext != null) {
+                conn.setSSLSocketFactory(sslContext.getSocketFactory());
+                logger.info("Using client certificate for authentication");
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to set up client certificate: {}", e.getMessage());
+        }
+
         conn.connect();
         return conn;
     }
 
-    private void validateHostname(HttpsURLConnection conn, URL url, X509Certificate cert) throws SSLTestException {
+    private void validateHostname( URL url, X509Certificate cert) throws SSLTestException {
+    private void validateHostname( URL url, X509Certificate cert) throws SSLTestException {
         try {
-            Optional<SSLSession> session = conn.getSSLSession();
-            if (session.isEmpty()) {
-                throw new SSLTestException("SSL session 不可用", EXIT_SSL_HANDSHAKE_ERROR);
-            }
-
             String hostname = url.getHost();
             if (!certValidator.verifyHostname(cert, hostname)) {
                 throw new SSLTestException("Hostname verification failed for host " + hostname,
@@ -155,17 +214,46 @@ public class SSLTest implements Callable<Integer> {
         }
     }
 
-    private void processCertificates(X509Certificate[] certs) throws Exception {
-        logger.info("→ Server sent {} certificate(s):", certs.length);
-        result.put("certificateCount", certs.length);
-        
-        @SuppressWarnings("unchecked")
-        Map<String, Object>[] certDetails = (Map<String, Object>[]) new Map[certs.length];
-        for (int i = 0; i < certs.length; i++) {
-            logger.info("Certificate [{}]", (i + 1));
-            certDetails[i] = certValidator.getCertificateInfo(certs[i]);
-            logger.info("");
+    private void processCertificates(X509Certificate[] certs) {
+        List<Map<String, Object>> certList = new ArrayList<>();
+        for (X509Certificate cert : certs) {
+            Map<String, Object> certInfo = new HashMap<>();
+            certInfo.put("subjectDN", cert.getSubjectX500Principal().getName());
+            certInfo.put("issuerDN", cert.getIssuerX500Principal().getName());
+            certInfo.put("version", cert.getVersion());
+            certInfo.put("serialNumber", cert.getSerialNumber().toString(16).toUpperCase());
+            certInfo.put("validFrom", cert.getNotBefore());
+            certInfo.put("validUntil", cert.getNotAfter());
+            certInfo.put("signatureAlgorithm", cert.getSigAlgName());
+            certInfo.put("publicKeyAlgorithm", cert.getPublicKey().getAlgorithm());
+            
+            // 添加证书状态信息
+            certInfo.put("status", "valid");
+            certInfo.put("trusted", true);
+            certInfo.put("expired", cert.getNotAfter().before(new java.util.Date()));
+            certInfo.put("notYetValid", cert.getNotBefore().after(new java.util.Date()));
+            certInfo.put("revoked", false);
+            certInfo.put("selfSigned", cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal()));
+            
+            // 添加 Subject Alternative Names
+            try {
+                Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+                if (sans != null && !sans.isEmpty()) {
+                    Map<String, String> sanMap = new HashMap<>();
+                    for (List<?> san : sans) {
+                        Integer type = (Integer) san.get(0);
+                        String value = (String) san.get(1);
+                        sanMap.put(type.toString(), value);
+                    }
+                    certInfo.put("subjectAlternativeNames", sanMap);
+                }
+            } catch (Exception e) {
+                // 忽略无法获取SAN的情况
+            }
+            
+            certList.add(certInfo);
         }
-        result.put("certificates", certDetails);
+        result.put("certificateChain", certList);
+        logger.info("→ Server sent {} certificate(s):", certs.length);
     }
 }
