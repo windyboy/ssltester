@@ -27,7 +27,8 @@ val versions = mapOf(
     "slf4j" to "2.0.11",
     "logback" to "1.5.13",
     "bouncycastle" to "1.78",
-    "mockk" to "1.13.9"
+    "mockk" to "1.13.9",
+    "jackson" to "2.16.1"
 )
 
 dependencies {
@@ -38,6 +39,7 @@ dependencies {
     // JSON support
     implementation(libs.jackson.databind)
     implementation(libs.jackson.dataformat.yaml)
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${versions["jackson"]}")
     
     // Logging
     implementation("org.slf4j:slf4j-api:${versions["slf4j"]}")
@@ -58,6 +60,9 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${versions["coroutines"]}")
     testImplementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
     testImplementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.10.2")
 }
 
 // Java configuration

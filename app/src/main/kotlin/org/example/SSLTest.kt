@@ -16,6 +16,10 @@ import java.net.URL
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
 import java.util.concurrent.Callable
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.HostnameVerifier
+import java.security.KeyStore
 
 /**
  * A command-line tool (using Picocli) for testing SSL/TLS connections to a given HTTPS URL.
@@ -24,7 +28,6 @@ import java.util.concurrent.Callable
  *   <li>Establishing an HTTPS connection to the specified URL.</li>
  *   <li>Validating the server's certificate chain against a truststore (system default or custom).</li>
  *   <li>Performing hostname verification (matching hostname against SANs/CN in the certificate).</li>
- *   <li>Requesting OCSP stapling by setting relevant system/security properties.</li>
  *   <li>Assessing and reporting the strength of the negotiated TLS protocol and cipher suite.</li>
  *   <li>Extracting and displaying detailed information about the server's certificates.</li>
  *   <li>Providing results in various formats (TEXT, JSON, YAML).</li>
@@ -41,6 +44,7 @@ class SSLTest : Callable<Int> {
 
         // Exit codes
         const val EXIT_SUCCESS = 0
+        const val EXIT_ERROR = 1
         const val EXIT_INVALID_ARGS = 1
         const val EXIT_SSL_HANDSHAKE_ERROR = 2
         const val EXIT_CONNECTION_ERROR = 3
@@ -80,28 +84,16 @@ class SSLTest : Callable<Int> {
      * Main execution method called by Picocli when the command is run.
      * It orchestrates the SSL/TLS test by:
      * <ol>
-     *   <li>Setting up system/security properties to enable OCSP stapling requests.</li>
      *   <li>Parsing and validating the target URL.</li>
      *   <li>Executing the main test logic via {@link #testSSLConnection(URL)}.</li>
      *   <li>Formatting and outputting the collected results.</li>
      *   <li>Handling any {@link SSLTestException} or other exceptions that occur.</li>
-     *   <li>Restoring original system/security properties in a finally block.</li>
      * </ol>
      *
      * @return The exit code for the application.
      */
     override fun call(): Int {
-        var originalEnableStatusRequestExtension: String? = null
-        var originalOcspEnable: String? = null
         try {
-            // Store original values and set new values for OCSP stapling
-            originalEnableStatusRequestExtension = System.getProperty("jdk.tls.client.enableStatusRequestExtension")
-            originalOcspEnable = java.security.Security.getProperty("ocsp.enable")
-
-            System.setProperty("jdk.tls.client.enableStatusRequestExtension", "true")
-            java.security.Security.setProperty("ocsp.enable", "true")
-            logger.debug("Set jdk.tls.client.enableStatusRequestExtension=true, ocsp.enable=true")
-
             if (config.url.isBlank()) {
                 throw SSLTestException("URL is required", EXIT_INVALID_ARGS)
             }
@@ -109,7 +101,7 @@ class SSLTest : Callable<Int> {
             // Load configuration from file if specified
             config.configFile?.let { configFile ->
                 try {
-                    val fileConfig = SSLTestConfigFile.loadConfig(configFile)
+                    val fileConfig = SSLTestConfigFile.loadConfig(configFile.absolutePath)
                     SSLTestConfigFile.applyConfig(fileConfig, config)
                 } catch (e: IOException) {
                     throw SSLTestException("Failed to load configuration file: ${e.message}", EXIT_INVALID_ARGS, e)
@@ -126,19 +118,6 @@ class SSLTest : Callable<Int> {
         } catch (e: Exception) {
             handleError("Unexpected error: ${e.message}", e, EXIT_UNEXPECTED_ERROR)
             return EXIT_UNEXPECTED_ERROR
-        } finally {
-            // Restore original property values
-            logger.debug("Restoring original OCSP properties...")
-            originalEnableStatusRequestExtension?.let {
-                System.setProperty("jdk.tls.client.enableStatusRequestExtension", it)
-            } ?: System.clearProperty("jdk.tls.client.enableStatusRequestExtension")
-
-            originalOcspEnable?.let {
-                java.security.Security.setProperty("ocsp.enable", it)
-            } ?: run {
-                java.security.Security.setProperty("ocsp.enable", "false")
-            }
-            logger.debug("Restored OCSP properties to their original values.")
         }
     }
 
@@ -181,6 +160,10 @@ class SSLTest : Callable<Int> {
         var conn: HttpsURLConnection? = null
         try {
             conn = setupConnection(url)
+            
+            // Connect first before accessing properties
+            conn.connect()
+            
             val responseCode = conn.responseCode
             val cipherSuite = conn.cipherSuite
 
@@ -213,9 +196,62 @@ class SSLTest : Callable<Int> {
 
     private fun setupConnection(url: URL): HttpsURLConnection {
         val conn = url.openConnection() as HttpsURLConnection
+        
+        // Set timeouts
         conn.connectTimeout = config.connectionTimeout
         conn.readTimeout = config.readTimeout
+        
+        // Set redirect following
         conn.instanceFollowRedirects = config.followRedirects
+        
+        // Configure SSL/TLS
+        val sslContext = SSLContext.getInstance("TLS")
+        val trustManagers = if (config.keystoreFile != null && config.keystorePassword != null) {
+            // Use custom keystore
+            val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
+            trustStore.load(config.keystoreFile?.inputStream(), config.keystorePassword?.toCharArray())
+            val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            trustManagerFactory.init(trustStore)
+            trustManagerFactory.trustManagers
+        } else {
+            // Use default truststore
+            val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            trustManagerFactory.init(null as KeyStore?)
+            trustManagerFactory.trustManagers
+        }
+        
+        // Initialize SSL context with trust managers
+        sslContext.init(null, trustManagers, null)
+        
+        // Set SSL socket factory
+        conn.sslSocketFactory = sslContext.socketFactory
+        
+        // Set client certificate if configured
+        clientCertManager.createSSLSocketFactory()?.let { sslSocketFactory ->
+            conn.sslSocketFactory = sslSocketFactory
+        }
+        
+        // Set hostname verifier
+        conn.hostnameVerifier = if (config.trustAllHosts) {
+            HostnameVerifier { _, _ -> true }
+        } else {
+            HostnameVerifier { hostname, session ->
+                val cert = session.peerCertificates[0] as X509Certificate
+                val sans = cert.getSubjectAlternativeNames()
+                if (sans != null) {
+                    for (san in sans) {
+                        val type = san[0] as Int
+                        val value = san[1] as String
+                        if ((type == 2 && value.equals(hostname, ignoreCase = true)) || // DNS
+                            (type == 7 && value == hostname)) { // IP
+                            return@HostnameVerifier true
+                        }
+                    }
+                }
+                false
+            }
+        }
+        
         return conn
     }
 
@@ -231,5 +267,44 @@ class SSLTest : Callable<Int> {
             )
         }
         result["certificates"] = certInfoList
+    }
+
+    fun test(): Map<String, Any> {
+        val result = mutableMapOf<String, Any>()
+        
+        try {
+            val url = parseAndValidateUrl(config.url)
+            val connection = setupConnection(url)
+            connection.connect()
+            
+            result["status"] = "success"
+            result["httpStatus"] = connection.responseCode
+            result["cipherSuite"] = connection.cipherSuite
+            
+            val certificates = connection.serverCertificates
+            if (certificates != null) {
+                result["certificates"] = certificates.map { cert ->
+                    val x509Cert = cert as X509Certificate
+                    mapOf(
+                        "subjectDN" to x509Cert.subjectX500Principal.name,
+                        "issuerDN" to x509Cert.issuerX500Principal.name,
+                        "version" to x509Cert.version,
+                        "serialNumber" to x509Cert.serialNumber.toString(16),
+                        "validFrom" to x509Cert.notBefore.toString(),
+                        "validUntil" to x509Cert.notAfter.toString(),
+                        "signatureAlgorithm" to x509Cert.sigAlgName,
+                        "publicKeyAlgorithm" to x509Cert.publicKey.algorithm
+                    )
+                }
+            }
+            
+            return result
+        } catch (e: Exception) {
+            result["status"] = "error"
+            result["error"] = e.message ?: "Unknown error"
+            result["errorCause"] = e.cause?.message ?: ""
+            result["exitCode"] = 1
+            return result
+        }
     }
 }

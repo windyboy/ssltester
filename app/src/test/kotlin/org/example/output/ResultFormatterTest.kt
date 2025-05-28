@@ -21,7 +21,8 @@ class ResultFormatterTest {
     }
 
     @Test
-    fun `test format success result`() {
+    fun `should format successful connection result`() {
+        // Given
         val result = mapOf(
             "status" to "success",
             "httpStatus" to 200,
@@ -29,79 +30,67 @@ class ResultFormatterTest {
             "hostnameVerified" to true
         )
         
-        formatter.formatAndOutput(result)
+        // When
+        val output = formatter.formatAndOutput(result)
+        
+        // Then
+        assertTrue(output.contains("Status: success"))
+        assertTrue(output.contains("HTTP Status: 200"))
+        assertTrue(output.contains("Cipher Suite: ECDHE-RSA-AES256-GCM-SHA384"))
     }
 
     @Test
-    fun `test format error result`() {
+    fun `should format connection error result`() {
+        // Given
         val result = mapOf(
             "status" to "error",
             "error" to "Connection refused",
             "errorCause" to "Connection timeout"
         )
         
-        formatter.formatAndOutput(result)
+        // When
+        val output = formatter.formatAndOutput(result)
+        
+        // Then
+        assertTrue(output.contains("Status: error"))
+        assertTrue(output.contains("Error: Connection refused"))
+        assertTrue(output.contains("Cause: Connection timeout"))
     }
 
     @Test
-    fun `test format certificate info`() {
+    fun `should format certificate information`() {
+        // Given
         val certInfo = mapOf(
             "subjectDN" to "CN=example.com",
             "issuerDN" to "CN=Let's Encrypt Authority X3",
-            "version" to 3,
-            "serialNumber" to "1234567890",
             "validFrom" to Date(),
             "validUntil" to Date(),
-            "signatureAlgorithm" to "SHA256withRSA",
-            "publicKeyAlgorithm" to "RSA",
-            "subjectAlternativeNames" to mapOf(
-                "DNS" to "example.com",
-                "IP" to "192.168.1.1"
-            )
+            "signatureAlgorithm" to "SHA256withRSA"
         )
         
-        formatter.formatAndOutput(certInfo)
+        // When
+        val output = formatter.formatAndOutput(certInfo)
+        
+        // Then
+        assertTrue(output.contains("Subject: CN=example.com"))
+        assertTrue(output.contains("Issuer: CN=Let's Encrypt Authority X3"))
+        assertTrue(output.contains("Signature Algorithm: SHA256withRSA"))
     }
 
     @Test
-    fun `test format certificate chain`() {
-        val result = mapOf(
-            "certificateChain" to listOf(
-                mapOf(
-                    "subjectDN" to "CN=example.com",
-                    "issuerDN" to "CN=Let's Encrypt Authority X3",
-                    "version" to 3,
-                    "serialNumber" to "1234567890",
-                    "validFrom" to Date(),
-                    "validUntil" to Date(),
-                    "signatureAlgorithm" to "SHA256withRSA",
-                    "publicKeyAlgorithm" to "RSA"
-                )
-            )
-        )
-        
-        formatter.formatAndOutput(result)
-    }
-
-    @Test
-    fun `test format empty result`() {
+    fun `should format empty result with minimal information`() {
+        // Given
         val result = mapOf(
             "status" to "success",
             "httpStatus" to 200
         )
         
-        formatter.formatAndOutput(result)
-    }
-
-    @Test
-    fun `test format with special characters`() {
-        val result = mapOf(
-            "status" to "success",
-            "httpStatus" to 200,
-            "cipherSuite" to "ECDHE-RSA-AES256-GCM-SHA384",
-            "hostnameVerified" to true
-        )
+        // When
+        val output = formatter.formatAndOutput(result)
         
-        formatter.formatAndOutput(result)
+        // Then
+        assertTrue(output.contains("Status: success"))
+        assertTrue(output.contains("HTTP Status: 200"))
+        assertFalse(output.contains("Cipher Suite:"))
     }
 } 

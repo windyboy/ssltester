@@ -4,8 +4,6 @@ readTimeout: 10000
 followRedirects: true
 verbose: true
 format: YAML
-checkOCSP: true
-checkCRL: true
 
 # Optional keystore configuration
 # keystoreFile: /path/to/keystore.jks
