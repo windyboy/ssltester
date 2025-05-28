@@ -2,7 +2,7 @@
 .gradle/
 build/
 gradle-app.setting
-!gradle-wrapper.jar
+# !gradle-wrapper.jar
 .gradletasknamecache
 
 # IntelliJ IDEA
@@ -51,3 +51,12 @@ gen/
 *.hprof
 .attach_*
 
+# keep Gradle wrapper scripts
+!gradlew
+!gradlew.bat
+
+# keep the wrapper directory itself
+!gradle/
+# but since we ignore *.jar above, explicitly re-allow these:
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
