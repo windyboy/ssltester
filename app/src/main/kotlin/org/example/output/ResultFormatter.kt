@@ -128,9 +128,9 @@ class ResultFormatter(private val config: SSLTestConfig) {
 
         // Handle error information
         result["error"]?.let {
-            sb.append("\n错误信息:\n$it\n")
+            sb.append("\nError:\n$it\n")
             result["errorCause"]?.let { cause ->
-                sb.append("原因: $cause\n")
+                sb.append("Cause: $cause\n")
             }
         }
 
@@ -141,18 +141,18 @@ class ResultFormatter(private val config: SSLTestConfig) {
         val sb = StringBuilder()
         
         // Add basic connection information
-        result["status"]?.let { sb.append("连接状态: $it\n") }
-        result["httpStatus"]?.let { sb.append("HTTP状态码: $it\n") }
-        result["cipherSuite"]?.let { sb.append("协商的密码套件: $it\n") }
+        result["status"]?.let { sb.append("Connection Status: $it\n") }
+        result["httpStatus"]?.let { sb.append("HTTP Status: $it\n") }
+        result["cipherSuite"]?.let { sb.append("Cipher Suite: $it\n") }
         result["hostnameVerified"]?.let { 
-            sb.append("主机名验证: ${if (it == true) "通过" else "失败"}\n") 
+            sb.append("Hostname Verification: ${if (it == true) "Passed" else "Failed"}\n") 
         }
 
         // Handle error information
         result["error"]?.let {
-            sb.append("\n错误信息:\n$it\n")
+            sb.append("\nError:\n$it\n")
             result["errorCause"]?.let { cause ->
-                sb.append("原因: $cause\n")
+                sb.append("Cause: $cause\n")
             }
         }
 

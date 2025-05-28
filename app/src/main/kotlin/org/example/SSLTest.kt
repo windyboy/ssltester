@@ -71,7 +71,7 @@ class SSLTest : Callable<Int> {
     // Constructor for test/dependency injection
     constructor(config: SSLTestConfig) {
         this.config = config
-        this.certValidator = CertificateValidator(config.keystoreFile, config.keystorePassword)
+        this.certValidator = CertificateValidator(config)
         this.resultFormatter = ResultFormatter(config)
         this.clientCertManager = ClientCertificateManager(config)
     }
@@ -203,7 +203,7 @@ class SSLTest : Callable<Int> {
             }
 
             // Then validate the certificate chain
-            certValidator.validateCertificateChain(certs, "RSA")
+            certValidator.validateCertificateChain(certs, url.host ?: "")
             processCertificates(certs.map { it as X509Certificate }.toTypedArray())
 
         } finally {

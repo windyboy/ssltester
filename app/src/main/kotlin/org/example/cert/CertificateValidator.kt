@@ -25,6 +25,7 @@ import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 import java.security.cert.CertificateExpiredException
 import java.security.cert.CertificateNotYetValidException
+import org.example.config.SSLTestConfig
 
 /**
  * A class for validating X.509 certificates and certificate chains.
@@ -32,11 +33,18 @@ import java.security.cert.CertificateNotYetValidException
  * and certificate information extraction.
  */
 class CertificateValidator(
-    private val keystoreFile: File?,
-    private val keystorePassword: String?
+    private val config: SSLTestConfig
 ) : X509TrustManager {
     private val logger = LoggerFactory.getLogger(CertificateValidator::class.java)
-    private val revocationChecker = CertificateRevocationChecker(true, false)
+    private val revocationChecker: CertificateRevocationChecker
+
+    init {
+        revocationChecker = CertificateRevocationChecker(
+            checkOCSP = config.checkOCSP,
+            checkCRL = config.checkCRL,
+            failOnError = true // Defaulting to true, can be made configurable if needed
+        )
+    }
 
     companion object {
         private val DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
@@ -45,38 +53,18 @@ class CertificateValidator(
     }
 
     /**
-     * Checks if the system time is potentially inaccurate.
-     * Mainly checks if the year is within a reasonable range, as certificate validation is time-sensitive.
-     */
-    fun checkSystemTime() {
-        try {
-            val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-            
-            if (currentYear < 2023 || currentYear > 2024) {
-                logger.warn("⚠️ 系统时间可能不准确！当前年份: {}，这会导致证书验证问题", currentYear)
-                logger.warn("请同步您的系统时间以确保证书验证正确")
-            }
-        } catch (e: Exception) {
-            logger.error("检查系统时间时发生错误", e)
-        }
-    }
-
-    /**
      * Validates a certificate chain against the configured trust store.
      *
      * @param certs The array of certificates to validate
-     * @param hostnameOrAlgorithm The hostname to verify or the algorithm to use
+     * @param hostname The hostname to verify against the certificate
      * @return The validated X509Certificate array
      * @throws CertificateException if the certificate chain is invalid
      */
     @Throws(CertificateException::class)
-    fun validateCertificateChain(certs: Array<Certificate>?, hostnameOrAlgorithm: String): Array<X509Certificate> {
+    fun validateCertificateChain(certs: Array<Certificate>?, hostname: String): Array<X509Certificate> {
         if (certs.isNullOrEmpty()) {
             throw CertificateException("No certificates provided")
         }
-
-        // Check system time
-        checkSystemTime()
 
         val x509Certs = certs.map { it as X509Certificate }.toTypedArray()
         
@@ -85,35 +73,54 @@ class CertificateValidator(
         CERTIFICATE_CACHE[certKey]?.let { cachedResult ->
             if (cachedResult) {
                 logger.info("→ Certificate chain trusted (from cache)")
-                // Also check hostname
-                if (!verifyHostname(x509Certs[0], hostnameOrAlgorithm)) {
-                    throw CertificateException("Hostname does not match certificate")
+                // Also check hostname, this was already done by SSLTest before calling this method,
+                // but keeping it here as a safeguard or if called from elsewhere.
+                if (!verifyHostname(x509Certs[0], hostname)) {
+                    throw CertificateException("Hostname does not match certificate (cached check)")
                 }
                 return x509Certs
             } else {
+                // If it was in cache as not trusted, re-throw.
+                // This specific path might need review if a negative cache entry should be re-validated.
                 throw CertificateException("Certificate chain not trusted (from cache)")
             }
         }
 
         val tmf = initializeTrustManagerFactory()
         val tm = findX509TrustManager(tmf)
+        val authType = x509Certs[0].publicKey.algorithm // Determine authType from leaf certificate
 
         try {
-            // Use the parameter as the algorithm type
-            tm.checkServerTrusted(x509Certs, hostnameOrAlgorithm)
-            logger.info("→ Certificate chain trusted")
-            CERTIFICATE_CACHE[certKey] = true
+            // Perform standard trust validation using the determined authType
+            tm.checkServerTrusted(x509Certs, authType)
+            logger.info("→ Certificate chain trusted by system/custom trust manager for authType: {}", authType)
+            
+            // Perform hostname verification again (as tm.checkServerTrusted doesn't do it)
+            // SSLTest already does this before calling validateCertificateChain, but this is a double check.
+            if (!verifyHostname(x509Certs[0], hostname)) {
+                CERTIFICATE_CACHE[certKey] = false // Cache as not trusted due to hostname mismatch
+                throw CertificateException("Hostname verification failed: '$hostname' does not match certificate's Subject Alternative Names or Common Name.")
+            }
+            logger.info("→ Hostname verification successful for: {}", hostname)
 
             // Check revocation status for each certificate in the chain
-            x509Certs.forEach { cert ->
-                revocationChecker.checkRevocation(cert)
+            // This should ideally be done after basic chain validation and hostname verification.
+            x509Certs.forEachIndexed { index, cert ->
+                val issuer = if (index + 1 < x509Certs.size) x509Certs[index + 1] else null
+                // Only perform revocation check if OCSP or CRL is enabled in config
+                if (config.checkOCSP || config.checkCRL) {
+                    logger.debug("Performing revocation check for: {} with issuer: {}", cert.subjectX500Principal, issuer?.subjectX500Principal ?: "N/A (self-signed or root)")
+                    revocationChecker.checkRevocation(cert, issuer)
+                } else {
+                    logger.debug("Skipping revocation check as both OCSP and CRL are disabled.")
+                }
+            }
+            if (config.checkOCSP || config.checkCRL) {
+                logger.info("→ Revocation checks passed (if enabled and applicable for each certificate)")
             }
 
-            // Also check hostname
-            if (!verifyHostname(x509Certs[0], hostnameOrAlgorithm)) {
-                throw CertificateException("Hostname does not match certificate")
-            }
 
+            CERTIFICATE_CACHE[certKey] = true // Cache as trusted
             return x509Certs
         } catch (e: CertificateException) {
             CERTIFICATE_CACHE[certKey] = false
@@ -131,12 +138,12 @@ class CertificateValidator(
             val tmf = TrustManagerFactory.getInstance("PKIX")
             val pkixParams: PKIXBuilderParameters
 
-            if (keystoreFile != null) {
-                logger.debug("Using custom keystore: {}", keystoreFile.absolutePath)
+            if (config.keystoreFile != null) {
+                logger.debug("Using custom keystore: {}", config.keystoreFile!!.absolutePath)
                 val ks = KeyStore.getInstance(KeyStore.getDefaultType())
                 ks.load(
-                    keystoreFile.toURI().toURL().openStream(),
-                    keystorePassword?.toCharArray()
+                    config.keystoreFile!!.toURI().toURL().openStream(),
+                    config.keystorePassword?.toCharArray()
                 )
                 tmf.init(ks)
                 pkixParams = PKIXBuilderParameters(ks, X509CertSelector())

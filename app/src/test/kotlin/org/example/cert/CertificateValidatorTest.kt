@@ -8,6 +8,7 @@ import java.security.KeyPair
 import java.security.KeyStore
 import java.security.cert.Certificate
 import java.security.cert.CertificateException
+import org.example.config.SSLTestConfig
 import java.security.cert.X509Certificate
 import java.util.*
 import java.security.KeyPairGenerator
@@ -36,7 +37,16 @@ class CertificateValidatorTest {
         tempDir = tempDirPath.toFile()
         keystoreFile = File(tempDir, "test.jks")
         createTestKeystore()
-        validator = CertificateValidator(keystoreFile, KEYSTORE_PASSWORD)
+        // Create a default SSLTestConfig for the validator
+        val testConfig = SSLTestConfig().apply {
+            // Set keystore properties in the config for the validator to use
+            this.keystoreFile = this@CertificateValidatorTest.keystoreFile
+            this.keystorePassword = KEYSTORE_PASSWORD
+            // Set any other specific config properties needed for tests, e.g.
+            // this.checkOCSP = true
+            // this.checkCRL = true
+        }
+        validator = CertificateValidator(testConfig)
         certGenerator = TestCertificateGenerator()
 
         // Generate CA certificate

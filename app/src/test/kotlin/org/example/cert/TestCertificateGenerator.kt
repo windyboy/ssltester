@@ -107,7 +107,10 @@ class TestCertificateGenerator {
         validFrom: Date = Date(),
         validTo: Date = Date(System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000),
         dnsNames: Array<String>? = null,
-        ipAddresses: Array<String>? = null
+        ipAddresses: Array<String>? = null,
+        ocspServerUri: String? = null,
+        crlUris: List<String>? = null,
+        caIssuersUri: String? = null
     ): X509Certificate {
         val subjectName = X500Name(subject)
         val issuerName = X500Name(issuerCert.subjectX500Principal.name)
@@ -143,6 +146,37 @@ class TestCertificateGenerator {
                 )
             }
         }
+
+        // Add Authority Information Access (AIA) extension
+        if (ocspServerUri != null || caIssuersUri != null) {
+            val accessDescriptions = mutableListOf<AccessDescription>()
+            ocspServerUri?.let {
+                val ocspName = GeneralName(GeneralName.uniformResourceIdentifier, it)
+                accessDescriptions.add(AccessDescription(X509ObjectIdentifiers.id_ad_ocsp, ocspName))
+            }
+            caIssuersUri?.let {
+                val caIssuerName = GeneralName(GeneralName.uniformResourceIdentifier, it)
+                accessDescriptions.add(AccessDescription(X509ObjectIdentifiers.id_ad_caIssuers, caIssuerName))
+            }
+            if (accessDescriptions.isNotEmpty()) {
+                val aia = AuthorityInformationAccess(accessDescriptions.toTypedArray())
+                certBuilder.addExtension(Extension.authorityInfoAccess, false, aia)
+            }
+        }
+
+        // Add CRL Distribution Points (CRLDP) extension
+        crlUris?.let { uris ->
+            if (uris.isNotEmpty()) {
+                val distributionPoints = uris.map { uri ->
+                    val generalName = GeneralName(GeneralName.uniformResourceIdentifier, uri)
+                    val distributionPointName = DistributionPointName(DistributionPointName.FULL_NAME, GeneralNames(generalName))
+                    DistributionPoint(distributionPointName, null, null)
+                }.toTypedArray()
+                val crlDistPoint = CRLDistPoint(distributionPoints)
+                certBuilder.addExtension(Extension.cRLDistributionPoints, false, crlDistPoint)
+            }
+        }
+
         val signer: ContentSigner = JcaContentSignerBuilder("SHA256withRSA").build(issuerKey)
         val certHolder: X509CertificateHolder = certBuilder.build(signer)
         return JcaX509CertificateConverter().getCertificate(certHolder)
