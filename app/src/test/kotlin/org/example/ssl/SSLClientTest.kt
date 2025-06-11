@@ -99,6 +99,23 @@ class SSLClientTest {
     }
 
     @Test
+    fun `test connection with custom port`() {
+        val url = URL("https://example.com:8443")
+        `when`(mockSocketFactory.createSocket("example.com", 8443)).thenReturn(mockSocket)
+        `when`(mockSocket.isConnected).thenReturn(true)
+        `when`(mockSocket.isClosed).thenReturn(false)
+        `when`(mockSocket.session).thenReturn(mockSession)
+        `when`(mockSession.cipherSuite).thenReturn("TLS_FAKE_CIPHER")
+        `when`(mockSession.peerCertificates).thenReturn(arrayOf(mock(java.security.cert.X509Certificate::class.java)))
+
+        val result = sslClient.connect(url)
+
+        assert(result.success)
+        verify(mockSocketFactory).createSocket("example.com", 8443)
+        verify(mockSocket).startHandshake()
+    }
+
+    @Test
     fun `test connection with invalid URL protocol`() {
         val url = URL("http://example.com")
         assertThrows<IllegalArgumentException> {

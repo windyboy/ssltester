@@ -28,7 +28,8 @@ class SSLClient(private val socketFactory: SSLSocketFactory) {
         }
 
         return try {
-            socket = socketFactory.createSocket(url.host, 443) as SSLSocket
+            val port = if (url.port != -1) url.port else url.defaultPort
+            socket = socketFactory.createSocket(url.host, port) as SSLSocket
             socket?.startHandshake()
 
             // Get connection information
