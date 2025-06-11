@@ -9,17 +9,16 @@ import org.example.output.ResultFormatter
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Command
-import javax.net.ssl.HttpsURLConnection
 import java.io.IOException
 import java.net.URI
 import java.net.URL
-import java.security.cert.Certificate
+import java.security.KeyStore
 import java.security.cert.X509Certificate
 import java.util.concurrent.Callable
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.HostnameVerifier
-import java.security.KeyStore
 
 /**
  * A command-line tool (using Picocli) for testing SSL/TLS connections to a given HTTPS URL.
