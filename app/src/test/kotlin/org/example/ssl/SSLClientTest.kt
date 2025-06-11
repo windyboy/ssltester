@@ -38,11 +38,16 @@ class SSLClientTest {
         `when`(mockSocket.isClosed).thenReturn(false)
         `when`(mockSocket.session).thenReturn(mockSession)
         `when`(mockSession.cipherSuite).thenReturn("TLS_FAKE_CIPHER")
-        `when`(mockSession.peerCertificates).thenReturn(arrayOf(mock(java.security.cert.X509Certificate::class.java)))
+        val cert = mock(java.security.cert.X509Certificate::class.java)
+        `when`(cert.subjectAlternativeNames).thenReturn(listOf(listOf(2, "example.com")))
+        `when`(cert.getSubjectAlternativeNames()).thenReturn(listOf(listOf(2, "example.com")))
+        `when`(cert.subjectX500Principal).thenReturn(javax.security.auth.x500.X500Principal("CN=example.com"))
+        `when`(mockSession.peerCertificates).thenReturn(arrayOf(cert))
 
         val result = sslClient.connect(url)
 
         assert(result.success)
+        assert(result.hostnameVerified)
         verify(mockSocketFactory).createSocket("example.com", 443)
         verify(mockSocket).startHandshake()
         // Do not verify close() here; socket is not closed after successful connection
@@ -69,7 +74,11 @@ class SSLClientTest {
         `when`(mockSocket.isClosed).thenReturn(false)
         `when`(mockSocket.session).thenReturn(mockSession)
         `when`(mockSession.cipherSuite).thenReturn("TLS_FAKE_CIPHER")
-        `when`(mockSession.peerCertificates).thenReturn(arrayOf(mock(java.security.cert.X509Certificate::class.java)))
+        val cert = mock(java.security.cert.X509Certificate::class.java)
+        `when`(cert.subjectAlternativeNames).thenReturn(listOf(listOf(2, "example.com")))
+        `when`(cert.getSubjectAlternativeNames()).thenReturn(listOf(listOf(2, "example.com")))
+        `when`(cert.subjectX500Principal).thenReturn(javax.security.auth.x500.X500Principal("CN=example.com"))
+        `when`(mockSession.peerCertificates).thenReturn(arrayOf(cert))
 
         sslClient.connect(url)
         sslClient.close()
@@ -104,5 +113,27 @@ class SSLClientTest {
         assertThrows<IllegalArgumentException> {
             sslClient.connect(url)
         }
+    }
+
+    @Test
+    fun `hostname verification mismatch`() {
+        val url = URL("https://example.com")
+        `when`(mockSocketFactory.createSocket("example.com", 443)).thenReturn(mockSocket)
+        `when`(mockSocket.isConnected).thenReturn(true)
+        `when`(mockSocket.isClosed).thenReturn(false)
+        `when`(mockSocket.session).thenReturn(mockSession)
+        `when`(mockSession.cipherSuite).thenReturn("TLS_FAKE_CIPHER")
+        val cert = mock(java.security.cert.X509Certificate::class.java)
+        `when`(cert.subjectAlternativeNames).thenReturn(listOf(listOf(2, "wrong.com")))
+        `when`(cert.getSubjectAlternativeNames()).thenReturn(listOf(listOf(2, "wrong.com")))
+        `when`(cert.subjectX500Principal).thenReturn(javax.security.auth.x500.X500Principal("CN=wrong.com"))
+        `when`(mockSession.peerCertificates).thenReturn(arrayOf(cert))
+
+        val result = sslClient.connect(url)
+
+        assert(result.success)
+        assert(!result.hostnameVerified)
+        verify(mockSocketFactory).createSocket("example.com", 443)
+        verify(mockSocket).startHandshake()
     }
 } 
