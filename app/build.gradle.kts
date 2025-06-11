@@ -27,8 +27,15 @@ val versions = mapOf(
     "slf4j" to "2.0.11",
     "logback" to "1.5.13",
     "bouncycastle" to "1.78",
-    "mockk" to "1.13.9",
-    "jackson" to "2.16.1"
+    "mockito" to "5.11.0",
+    "mockito-kotlin" to "5.2.1",
+    "jackson" to "2.16.1",
+    "kotlinx-serialization" to "1.6.2",
+    "ktor" to "2.3.7",
+    "junit" to "5.10.2",
+    "bytebuddy" to "1.14.12",
+    "kotlinx-datetime" to "0.5.0",
+    "kotlin-logging" to "3.0.5"
 )
 
 dependencies {
@@ -40,15 +47,18 @@ dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.jackson.dataformat.yaml)
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${versions["jackson"]}")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${versions["jackson"]}")
     
     // Logging
     implementation("org.slf4j:slf4j-api:${versions["slf4j"]}")
+    implementation("io.github.microutils:kotlin-logging:${versions["kotlin-logging"]}")
     implementation("ch.qos.logback:logback-classic:${versions["logback"]}")
 
     // Kotlin dependencies
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions["coroutines"]}")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:${versions["kotlinx-datetime"]}")
 
     // BouncyCastle for OCSP and CRL support
     implementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
@@ -56,13 +66,26 @@ dependencies {
 
     // Testing
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("io.mockk:mockk:${versions["mockk"]}")
+    testImplementation("org.mockito:mockito-core:${versions["mockito"]}")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:${versions["mockito-kotlin"]}")
+    testImplementation("org.mockito:mockito-junit-jupiter:${versions["mockito"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter:${versions["junit"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${versions["junit"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:${versions["junit"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:${versions["junit"]}")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${versions["coroutines"]}")
     testImplementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
     testImplementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+    testImplementation("net.bytebuddy:byte-buddy:1.14.12")
+    testImplementation("net.bytebuddy:byte-buddy-agent:1.14.12")
+    testImplementation("io.mockk:mockk:1.13.10")
+
+    // New dependencies
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${versions["kotlinx-serialization"]}")
+    implementation("io.ktor:ktor-client-core:${versions["ktor"]}")
+    implementation("io.ktor:ktor-client-cio:${versions["ktor"]}")
+    implementation("io.ktor:ktor-client-content-negotiation:${versions["ktor"]}")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:${versions["ktor"]}")
 }
 
 // Java configuration
@@ -99,6 +122,7 @@ tasks.named<JavaExec>("run") {
 // Testing configuration
 tasks.test {
     useJUnitPlatform()
+    jvmArgs = listOf("-javaagent:${classpath.find { it.name.startsWith("byte-buddy-agent") }?.absolutePath}")
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true

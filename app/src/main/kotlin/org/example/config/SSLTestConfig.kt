@@ -1,72 +1,122 @@
 package org.example.config
 
 import java.io.File
-import picocli.CommandLine.Option
-import picocli.CommandLine.Parameters
-import picocli.CommandLine
+import org.example.exception.SSLTestException
 
 /**
- * Holds configuration parameters for the SSL/TLS test tool.
- * These parameters are populated by Picocli from command-line arguments.
- * Each field corresponds to a command-line option or positional parameter.
+ * Configuration for SSL testing.
  */
-class SSLTestConfig {
-    @Parameters(index = "0", description = ["要测试的HTTPS URL"])
-    var url: String = ""
-
-    @Option(names = ["-k", "--keystore"], description = ["信任库文件路径"])
-    var keystoreFile: File? = null
-
-    @Option(names = ["-p", "--keystore-password"], description = ["信任库密码"])
-    var keystorePassword: String? = null
-
-    @Option(names = ["-c", "--client-cert"], description = ["客户端证书文件路径"])
-    var clientCertFile: File? = null
-
-    @Option(names = ["-i", "--client-key"], description = ["客户端私钥文件路径"])
-    var clientKeyFile: File? = null
-
-    @Option(names = ["-w", "--client-key-password"], description = ["客户端私钥密码"])
-    var clientKeyPassword: String? = null
-
-    @Option(names = ["-t", "--timeout"], description = ["连接超时时间(毫秒)"])
-    var connectionTimeout: Int = 30000
-
-    @Option(names = ["-r", "--read-timeout"], description = ["读取超时时间(毫秒)"])
-    var readTimeout: Int = 30000
-
-    @Option(names = ["-f", "--follow-redirects"], description = ["是否跟随重定向"])
-    var followRedirects: Boolean = true
-
-    @Option(names = ["--trust-all-hosts"], description = ["信任所有主机名"])
-    var trustAllHosts: Boolean = false
-
-    @Option(names = ["--format"], description = ["输出格式 (TEXT, JSON, YAML)"])
-    var format: OutputFormat = OutputFormat.TEXT
-
-    @Option(names = ["--config"], description = ["配置文件路径"])
-    var configFile: File? = null
-
-    @Option(names = ["-o", "--output"], description = ["输出文件路径"])
-    var outputFile: File? = null
-
-    @Option(names = ["--fail-on-error"], description = ["遇到错误时立即失败"])
-    var failOnError: Boolean = true
-
-    @Option(names = ["-v", "--verbose"], description = ["显示详细信息"])
-    var verbose: Boolean = false
-
+data class SSLTestConfig(
+    val url: String,
+    val connectTimeout: Int = 5000,
+    val readTimeout: Int = 5000,
+    val outputFormat: OutputFormat = OutputFormat.TEXT,
+    val outputFile: String? = null,
+    val trustStore: String? = null,
+    val trustStorePassword: String? = null,
+    val clientCertFile: String? = null,
+    val clientKeyFile: String? = null,
+    val clientKeyPassword: String? = null,
+    val verifyHostname: Boolean = true,
+    val failOnError: Boolean = false
+) {
+    /**
+     * Supported output formats.
+     */
     enum class OutputFormat {
-        /** Plain text format, human-readable. */
         TEXT,
-        /** JSON format, machine-readable. */
         JSON,
-        /** YAML format, human and machine-readable. */
         YAML
     }
 
-    fun parseArgs(args: Array<String>) {
-        val commandLine = CommandLine(this)
-        commandLine.parseArgs(*args)
+    /**
+     * Validates the configuration.
+     * @throws SSLTestException if the configuration is invalid
+     */
+    fun validate() {
+        if (url.isBlank()) {
+            throw SSLTestException("URL cannot be empty")
+        }
+
+        if (connectTimeout <= 0) {
+            throw SSLTestException("Connect timeout must be positive")
+        }
+
+        if (readTimeout <= 0) {
+            throw SSLTestException("Read timeout must be positive")
+        }
+
+        if (trustStore != null && !File(trustStore).exists()) {
+            throw SSLTestException("Trust store file does not exist: $trustStore")
+        }
+
+        if (clientCertFile != null && !File(clientCertFile).exists()) {
+            throw SSLTestException("Client certificate file does not exist: $clientCertFile")
+        }
+
+        if (clientKeyFile != null && !File(clientKeyFile).exists()) {
+            throw SSLTestException("Client key file does not exist: $clientKeyFile")
+        }
+    }
+
+    companion object {
+        /**
+         * Parses command line arguments into a configuration.
+         * @param args The command line arguments
+         * @return The parsed configuration
+         * @throws SSLTestException if the arguments are invalid
+         */
+        fun parseArgs(args: Array<String>): SSLTestConfig {
+            if (args.isEmpty()) {
+                throw SSLTestException("URL is required")
+            }
+
+            val url = args[0]
+            var connectTimeout = 5000
+            var readTimeout = 5000
+            var outputFormat = OutputFormat.TEXT
+            var outputFile: String? = null
+            var trustStore: String? = null
+            var trustStorePassword: String? = null
+            var clientCertFile: String? = null
+            var clientKeyFile: String? = null
+            var clientKeyPassword: String? = null
+            var verifyHostname = true
+            var failOnError = false
+
+            var i = 1
+            while (i < args.size) {
+                when (args[i]) {
+                    "--connect-timeout" -> connectTimeout = args[++i].toInt()
+                    "--read-timeout" -> readTimeout = args[++i].toInt()
+                    "--output-format" -> outputFormat = OutputFormat.valueOf(args[++i].uppercase())
+                    "--output-file" -> outputFile = args[++i]
+                    "--trust-store" -> trustStore = args[++i]
+                    "--trust-store-password" -> trustStorePassword = args[++i]
+                    "--client-cert" -> clientCertFile = args[++i]
+                    "--client-key" -> clientKeyFile = args[++i]
+                    "--client-key-password" -> clientKeyPassword = args[++i]
+                    "--no-verify-hostname" -> verifyHostname = false
+                    "--fail-on-error" -> failOnError = true
+                    else -> throw SSLTestException("Unknown argument: ${args[i]}")
+                }
+                i++
+            }
+
+            return SSLTestConfig(
+                url = url,
+                connectTimeout = connectTimeout,
+                readTimeout = readTimeout,
+                outputFormat = outputFormat,
+                outputFile = outputFile,
+                trustStore = trustStore,
+                trustStorePassword = trustStorePassword,
+                clientCertFile = clientCertFile,
+                clientKeyFile = clientKeyFile,
+                clientKeyPassword = clientKeyPassword,
+                verifyHostname = verifyHostname,
+                failOnError = failOnError
+            ).apply { validate() }
+        }
     }
 } 
