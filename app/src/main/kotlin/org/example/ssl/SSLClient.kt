@@ -59,16 +59,49 @@ class SSLClient(private val socketFactory: SSLSocketFactory) {
     private fun verifyHostname(socket: SSLSocket?, hostname: String): Boolean {
         return try {
             if (socket == null) return false
-            val sslSession = socket.session
-            if (sslSession == null) {
-                logger.error("No SSL session available")
+            val sslSession = socket.session ?: return false
+
+            val peerCerts = try {
+                sslSession.peerCertificates
+            } catch (e: Exception) {
+                logger.error("Failed to obtain peer certificates: {}", e.message)
                 return false
             }
-            true
+
+            if (peerCerts.isEmpty()) return false
+
+            val leaf = peerCerts[0] as? X509Certificate ?: return false
+
+            // Check SANs first
+            leaf.subjectAlternativeNames?.forEach { san ->
+                val type = san[0] as? Int ?: return@forEach
+                if (type == 2) { // DNS name
+                    val dnsName = san[1] as? String ?: return@forEach
+                    if (matchesHostname(hostname, dnsName)) return true
+                }
+            }
+
+            // Fall back to common name
+            val cn = extractCN(leaf.subjectX500Principal.name)
+            return cn != null && matchesHostname(hostname, cn)
         } catch (e: Exception) {
             logger.error("Hostname verification failed: {}", e.message)
             false
         }
+    }
+
+    private fun matchesHostname(hostname: String, pattern: String): Boolean {
+        return if (pattern.startsWith("*.") && hostname.contains('.')) {
+            val domain = pattern.substring(2)
+            hostname.lowercase().endsWith(".$domain")
+        } else {
+            hostname.equals(pattern, ignoreCase = true)
+        }
+    }
+
+    private fun extractCN(dn: String): String? {
+        val regex = Regex("CN=([^,]+)")
+        return regex.find(dn)?.groupValues?.get(1)
     }
 
     /**
