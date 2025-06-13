@@ -82,12 +82,15 @@ class CertificateValidatorImplTest {
     }
 
     @Test
-    @Disabled("Test fails due to revocation status issues with test certificates")
     fun `test valid certificate chain with custom validation date`() {
         // Given
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.DAY_OF_MONTH, 1) // Set date to tomorrow
-        val config = CertificateValidationConfig(validationDate = calendar.time)
+        val config = CertificateValidationConfig(
+            validationDate = calendar.time,
+            enableRevocationCheck = false,
+            enableOCSPCheck = false
+        )
         val validator = CertificateValidatorImpl(config)
         val leafCert = loadCertificate("certs/leaf.der")
         val rootCert = loadCertificate("certs/root.der")
