@@ -62,21 +62,16 @@ class SSLConnectionTesterImpl : SSLConnectionTester {
                         // 获取证书链
                         val certificates = try {
                             val certs = session.peerCertificates
-                            println("Debug: Found ${certs.size} certificates")
                             certs.map { cert ->
                                 try {
                                     cert as X509Certificate
                                 } catch (e: Exception) {
-                                    println("Debug: Failed to cast certificate: ${e.message}")
                                     null
                                 }
                             }.filterNotNull()
                         } catch (e: Exception) {
-                            println("Debug: Failed to get certificates: ${e.message}")
                             emptyList()
                         }
-                        
-                        println("Debug: Successfully processed ${certificates.size} certificates")
                         
                         // 创建连接对象
                         val connection = SSLConnection(
@@ -88,9 +83,6 @@ class SSLConnectionTesterImpl : SSLConnectionTester {
                             isSecure = true,
                             certificateChain = certificates
                         )
-                        
-                        // 验证证书链是否正确传递
-                        println("Debug: Connection object has ${connection.certificateChain.size} certificates")
                         
                         connection
                     } catch (e: SSLHandshakeException) {
@@ -135,7 +127,7 @@ class SSLConnectionTesterImpl : SSLConnectionTester {
         return SSLConnection(
             host = host,
             port = port,
-            protocol = "Unknown",
+            protocol = "Unknown ($errorMessage)",
             cipherSuite = "Unknown",
             handshakeTime = Duration.between(startTime, Instant.now()),
             isSecure = false,

@@ -40,7 +40,7 @@ class SSLConnectionTesterTest {
             
             assertFalse(result.isSecure)
             assertTrue(result.certificateChain.isEmpty())
-            assertTrue(result.protocol.isEmpty() || result.protocol == "Unknown")
+            assertTrue(result.protocol.startsWith("Unknown"))
             assertTrue(result.cipherSuite.isEmpty() || result.cipherSuite == "Unknown")
         }
         println("test connection with invalid host took ${time}ms")
@@ -56,7 +56,7 @@ class SSLConnectionTesterTest {
             
             assertFalse(result.isSecure)
             assertTrue(result.certificateChain.isEmpty())
-            assertTrue(result.protocol.isEmpty() || result.protocol == "Unknown")
+            assertTrue(result.protocol.startsWith("Unknown"))
             assertTrue(result.cipherSuite.isEmpty() || result.cipherSuite == "Unknown")
         }
         println("test connection with invalid port took ${time}ms")
@@ -73,7 +73,7 @@ class SSLConnectionTesterTest {
             
             assertFalse(result.isSecure)
             assertTrue(result.certificateChain.isEmpty())
-            assertTrue(result.protocol.isEmpty() || result.protocol == "Unknown")
+            assertTrue(result.protocol.startsWith("Unknown"))
             assertTrue(result.cipherSuite.isEmpty() || result.cipherSuite == "Unknown")
         }
         println("test connection with timeout took ${time}ms")
@@ -88,7 +88,7 @@ class SSLConnectionTesterTest {
             
             assertFalse(result.isSecure)
             assertTrue(result.certificateChain.isEmpty())
-            assertTrue(result.protocol.isEmpty() || result.protocol == "Unknown")
+            assertTrue(result.protocol.startsWith("Unknown"))
             assertTrue(result.cipherSuite.isEmpty() || result.cipherSuite == "Unknown")
         }
         println("test connection to non-HTTPS port took ${time}ms")

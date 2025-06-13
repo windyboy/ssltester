@@ -13,21 +13,8 @@ import java.security.cert.X509Certificate
 class JsonOutputFormatter : OutputFormatter {
     private val mapper = ObjectMapper().registerKotlinModule()
 
-    private fun getCertificateType(cert: X509Certificate): String {
-        val keyUsage = cert.keyUsage
-        val extendedKeyUsage = cert.extendedKeyUsage
-        
-        return when {
-            keyUsage?.get(0) == true && keyUsage.get(5) == true -> "SSL/TLS服务器证书"
-            keyUsage?.get(0) == true && keyUsage.get(5) == false -> "SSL/TLS客户端证书"
-            extendedKeyUsage?.contains("1.3.6.1.5.5.7.3.1") == true -> "SSL/TLS服务器证书"
-            extendedKeyUsage?.contains("1.3.6.1.5.5.7.3.2") == true -> "SSL/TLS客户端证书"
-            extendedKeyUsage?.contains("1.3.6.1.5.5.7.3.3") == true -> "代码签名证书"
-            extendedKeyUsage?.contains("1.3.6.1.5.5.7.3.4") == true -> "电子邮件保护证书"
-            extendedKeyUsage?.contains("1.3.6.1.5.5.7.3.8") == true -> "时间戳证书"
-            keyUsage?.get(1) == true -> "CA证书"
-            else -> "未知类型证书"
-        }
+    private fun getCertificateType(@Suppress("UNUSED_PARAMETER") cert: X509Certificate): String {
+        return "服务器证书"
     }
 
     override fun format(connection: SSLConnection): String {

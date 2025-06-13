@@ -22,12 +22,12 @@ class TextOutputFormatterTest {
 
     @Test
     fun `test format successful connection`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
             every { certificate.subjectX500Principal } returns X500Principal("CN=example.com")
             every { certificate.issuerX500Principal } returns X500Principal("CN=Let's Encrypt Authority X3")
-            every { certificate.notBefore } returns Date(System.currentTimeMillis() - 86400000)
-            every { certificate.notAfter } returns Date(System.currentTimeMillis() + 86400000 * 90)
+            every { certificate.notBefore } returns Date(System.currentTimeMillis() - 86400000L)
+            every { certificate.notAfter } returns Date(System.currentTimeMillis() + 86400000L * 90)
             every { certificate.serialNumber } returns BigInteger.valueOf(123456789)
             every { certificate.encoded } returns "test".toByteArray()
             every { certificate.keyUsage } returns null
@@ -57,7 +57,7 @@ class TextOutputFormatterTest {
 
     @Test
     fun `test format failed connection with empty certificate chain`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val result = SSLConnection(
                 host = "example.com",
                 port = 443,

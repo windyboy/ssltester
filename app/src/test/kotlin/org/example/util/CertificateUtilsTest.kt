@@ -16,7 +16,7 @@ class CertificateUtilsTest {
 
     @Test
     fun `test get certificate subject`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
             val subject = X500Principal("CN=example.com, O=Example Organization, C=US")
             every { certificate.subjectX500Principal } returns subject
@@ -30,7 +30,7 @@ class CertificateUtilsTest {
 
     @Test
     fun `test get certificate issuer`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
             val issuer = X500Principal("CN=Let's Encrypt Authority X3, O=Let's Encrypt, C=US")
             every { certificate.issuerX500Principal } returns issuer
@@ -44,10 +44,10 @@ class CertificateUtilsTest {
 
     @Test
     fun `test get certificate validity period`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
-            val notBefore = Date(System.currentTimeMillis() - 86400000) // 1天前
-            val notAfter = Date(System.currentTimeMillis() + 86400000 * 90) // 90天后
+            val notBefore = Date(System.currentTimeMillis() - 86400000L) // 1天前
+            val notAfter = Date(System.currentTimeMillis() + 86400000L * 90) // 90天后
             every { certificate.notBefore } returns notBefore
             every { certificate.notAfter } returns notAfter
 
@@ -61,7 +61,7 @@ class CertificateUtilsTest {
 
     @Test
     fun `test get certificate serial number`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
             val serialNumber = BigInteger.valueOf(123456789)
             every { certificate.serialNumber } returns serialNumber
@@ -75,7 +75,7 @@ class CertificateUtilsTest {
 
     @Test
     fun `test get certificate serial number with zero`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
             val serialNumber = BigInteger.ZERO
             every { certificate.serialNumber } returns serialNumber
@@ -89,7 +89,7 @@ class CertificateUtilsTest {
 
     @Test
     fun `test get certificate serial number with large number`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
             val serialNumber = BigInteger("FFFFFFFFFFFFFFFF", 16) // 最大16位十六进制数
             every { certificate.serialNumber } returns serialNumber
@@ -103,7 +103,7 @@ class CertificateUtilsTest {
 
     @Test
     fun `test get certificate validity period with same dates`() {
-        val time = measureTimeMillis {
+        val time: Long = measureTimeMillis {
             val certificate = mockk<X509Certificate>()
             val date = Date()
             every { certificate.notBefore } returns date
