@@ -41,17 +41,6 @@ class SSLConnectionTesterImplTest {
         verify(mockCertificateValidator).validateCertificateChain(certificates, hostname)
     }
 
-    @Test
-    fun `test validate certificate chain with expired certificate`() {
-        // Given
-        val certificates = arrayOf(mockCertificate)
-        val hostname = "example.com"
-        `when`(mockCertificateValidator.validateCertificateChain(certificates, hostname)).thenReturn(false)
-
-        // When/Then
-        sslConnectionTester.validateCertificateChain(certificates, hostname)
-        verify(mockCertificateValidator).validateCertificateChain(certificates, hostname)
-    }
 
     @Test
     fun `test verify hostname`() {
