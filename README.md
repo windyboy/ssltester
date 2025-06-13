@@ -1,4 +1,4 @@
-# SSL验证工具
+# SSL验证工具 (SSL Verification Tool)
 
 一款功能强大的SSL证书验证和HTTPS连接测试工具，用于检查服务器SSL/TLS配置、证书链、主机名验证等。
 
@@ -10,7 +10,7 @@
 - 主机名验证
 - 客户端证书支持
 - 详细的证书信息展示
-- 多种输出格式支持(TEXT, JSON, YAML)
+- 多种输出格式支持(文本格式, JSON格式, YAML格式)
 
 ## 系统要求
 
@@ -67,7 +67,7 @@ ssltest https://example.com -f
 
 ```bash
 # 使用自定义信任库
-ssltest https://example.com -k mycerts.jks -p 
+ssltest https://example.com -k mycertificates.jks -p 
 # 会提示输入信任库密码
 ```
 
@@ -75,13 +75,13 @@ ssltest https://example.com -k mycerts.jks -p
 
 ```bash
 # 使用客户端证书和私钥进行双向TLS认证
-ssltest https://example.com --client-cert client.pem --client-key client_key.pem
+ssltest https://example.com --client-certificate client.pem --client-key client_key.pem
 
 # 指定客户端证书格式
-ssltest https://example.com --client-cert client.der --client-key client_key.der --client-cert-format DER
+ssltest https://example.com --client-certificate client.der --client-key client_key.der --client-certificate-format DER
 
 # 带密码的私钥
-ssltest https://example.com --client-cert client.pem --client-key client_key.pem --client-key-password
+ssltest https://example.com --client-certificate client.pem --client-key client_key.pem --client-key-password
 # 会提示输入私钥密码
 ```
 
@@ -115,12 +115,12 @@ ssltest https://example.com -c myconfig.yml
 connectionTimeout: 10000
 readTimeout: 10000
 followRedirects: true
-keystoreFile: "mycerts.jks"
+keystoreFile: "mycertificates.jks"
 keystorePassword: "mysecret"
-clientCertFile: "client.pem"
+clientCertificateFile: "client.pem"
 clientKeyFile: "client_key.pem"
 clientKeyPassword: "keypass"
-clientCertFormat: "PEM"
+clientCertificateFormat: "PEM"
 outputFile: "results.json"
 format: "JSON"
 verbose: true
@@ -136,12 +136,12 @@ verbose: true
 | `-f, --follow-redirects` | 跟踪HTTP重定向 | false |
 | `-k, --keystore` | 信任库文件路径 | 系统默认 |
 | `-p, --keystore-password` | 信任库密码 (交互式) | - |
-| `--client-cert` | 客户端证书文件路径 | - |
+| `--client-certificate` | 客户端证书文件路径 | - |
 | `--client-key` | 客户端私钥文件路径 | - |
 | `--client-key-password` | 客户端私钥密码 (交互式) | - |
-| `--client-cert-format` | 客户端证书格式 (PEM, DER) | PEM |
+| `--client-certificate-format` | 客户端证书格式 (PEM, DER) | PEM |
 | `-o, --output` | 输出文件路径 | - |
-| `--format` | 输出格式 (TEXT, JSON, YAML) | TEXT |
+| `--format` | 输出格式 (文本格式, JSON格式, YAML格式) | 文本格式 |
 | `-v, --verbose` | 显示详细输出 | false |
 | `-c, --config` | 配置文件路径 (YAML/JSON) | - |
 
@@ -172,15 +172,15 @@ HTTP状态码: 200
 主机名验证: 通过
 
 服务器证书链:
-[1] Subject: CN=example.com, O=Example Inc, C=US
-    Issuer: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
+[1] 主体: CN=example.com, O=Example Inc, C=US
+    颁发者: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
     有效期: 2023-01-15 至 2024-01-15
-    SHA-256: 3A:40:F5:9E:84:2E:...
+    指纹(SHA-256): 3A:40:F5:9E:84:2E:...
 
-[2] Subject: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
-    Issuer: CN=DigiCert Global Root CA, O=DigiCert Inc, OU=www.digicert.com, C=US
+[2] 主体: CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US
+    颁发者: CN=DigiCert Global Root CA, O=DigiCert Inc, OU=www.digicert.com, C=US
     有效期: 2021-04-14 至 2031-04-13
-    SHA-256: 0A:35:48:7C:0C:3C:...
+    指纹(SHA-256): 0A:35:48:7C:0C:3C:...
 ```
 
 ### JSON输出
@@ -200,7 +200,7 @@ HTTP状态码: 200
       "issuer": "CN=DigiCert TLS RSA SHA256 2020 CA1, O=DigiCert Inc, C=US",
       "validFrom": "2023-01-15T00:00:00Z",
       "validTo": "2024-01-15T23:59:59Z",
-      "sha256": "3A:40:F5:9E:84:2E:..."
+      "fingerprintSHA256": "3A:40:F5:9E:84:2E:..."
     },
     {
       "position": 2,
@@ -208,7 +208,7 @@ HTTP状态码: 200
       "issuer": "CN=DigiCert Global Root CA, O=DigiCert Inc, OU=www.digicert.com, C=US",
       "validFrom": "2021-04-14T00:00:00Z",
       "validTo": "2031-04-13T23:59:59Z",
-      "sha256": "0A:35:48:7C:0C:3C:..."
+      "fingerprintSHA256": "0A:35:48:7C:0C:3C:..."
     }
   ]
 }
@@ -217,7 +217,7 @@ HTTP状态码: 200
 ## 常见问题解答
 
 ### Q: 如何测试需要客户端证书的服务器？
-A: 使用 `--client-cert` 和 `--client-key` 参数指定客户端证书和私钥。如果私钥有密码保护，可以使用 `--client-key-password` 参数。
+A: 使用 `--client-certificate` 和 `--client-key` 参数指定客户端证书和私钥。如果私钥有密码保护，可以使用 `--client-key-password` 参数。
 
 ### Q: 如何处理自签名证书或内部CA签发的证书？
 A: 可以使用 `-k, --keystore` 参数指定包含这些证书的信任库。

@@ -1,52 +1,82 @@
 package org.example
 
-import org.example.cert.CertificateValidatorImpl
-import org.example.cert.ClientCertificateManagerImpl
+import kotlinx.coroutines.runBlocking
+import org.example.domain.model.OutputFormat
+import org.example.domain.model.SSLConnection
+import org.example.domain.service.OutputFormatter
 import org.example.config.SSLTestConfig
-import org.example.exception.SSLTestException
-import org.example.output.ResultFormatterImpl
-import org.example.ssl.SSLConnectionTesterImpl
-import org.slf4j.LoggerFactory
+import org.example.infrastructure.output.TextOutputFormatter
+import org.example.infrastructure.output.JsonOutputFormatter
+import org.example.infrastructure.output.YamlOutputFormatter
+import org.example.infrastructure.security.SSLConnectionTesterImpl
+import java.io.File
+import java.time.Duration
 
-/**
- * Main class for SSL testing.
- */
-class SSLTest {
-    private val logger = LoggerFactory.getLogger(javaClass)
-
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val logger = LoggerFactory.getLogger(SSLTest::class.java)
-            try {
-                val config = SSLTestConfig.parseArgs(args)
-                val test = SSLTest()
-                test.runTest(config)
-            } catch (e: SSLTestException) {
-                logger.error("Test failed: ${e.message}")
-                System.exit(1)
-            } catch (e: Exception) {
-                logger.error("Unexpected error: ${e.message}", e)
-                System.exit(1)
-            }
-        }
+fun main(args: Array<String>) = runBlocking {
+    if (args.isEmpty()) {
+        println("Usage: ssl-test <host> [options]")
+        println("Options:")
+        println("  --port <port>              Port number (default: 443)")
+        println("  --connect-timeout <ms>     Connection timeout in milliseconds (default: 5000)")
+        println("  --output-format <format>   Output format (TXT) (default: TXT)")
+        println("  --output-file <file>       Output file path (optional)")
+        return@runBlocking
     }
 
-    /**
-     * Runs the SSL test with the given configuration.
-     * @param config The test configuration
-     */
-    fun runTest(config: SSLTestConfig) {
-        val certificateValidator = CertificateValidatorImpl()
-        val clientCertificateManager = ClientCertificateManagerImpl()
-        val connectionTester = SSLConnectionTesterImpl(certificateValidator, clientCertificateManager)
-        val resultFormatter = ResultFormatterImpl()
-
-        val result = connectionTester.testConnection(config)
-        resultFormatter.formatAndOutput(listOf(result), config)
-
-        if (config.failOnError && !result.validationResult.chainValidationResult) {
-            throw SSLTestException("SSL test failed: ${result.validationResult.message}")
+    try {
+        val host = args[0]
+        val port = args.getOrNull(1)?.toIntOrNull() ?: 443
+        val config = parseConfig(args.drop(2).toTypedArray())
+        val tester = SSLConnectionTesterImpl()
+        val connection = tester.testConnection(host, port, config)
+        val formatter = createFormatter(config.format)
+        val output = formatter.format(connection)
+        if (config.outputFile != null) {
+            File(config.outputFile).writeText(output)
+        } else {
+            println(output)
         }
+    } catch (e: Exception) {
+        val failedConnection = SSLConnection(
+            host = args[0],
+            port = args.getOrNull(1)?.toIntOrNull() ?: 443,
+            protocol = "",
+            cipherSuite = "",
+            handshakeTime = Duration.ofMillis(0),
+            isSecure = false,
+            certificateChain = emptyList()
+        )
+        val formatter = createFormatter(OutputFormat.TXT)
+        val output = formatter.format(failedConnection)
+        println(output)
+    }
+}
+
+fun parseConfig(args: Array<String>): SSLTestConfig {
+    var connectionTimeout = 5000
+    var format = OutputFormat.TXT
+    var outputFile: String? = null
+    var i = 0
+    while (i < args.size) {
+        when (args[i]) {
+            "--connect-timeout" -> connectionTimeout = args[++i].toInt()
+            "--output-format" -> format = OutputFormat.valueOf(args[++i].uppercase())
+            "--output-file" -> outputFile = args[++i]
+        }
+        i++
+    }
+    return SSLTestConfig(
+        connectionTimeout = connectionTimeout,
+        format = format,
+        outputFile = outputFile
+    )
+}
+
+fun createFormatter(format: OutputFormat): OutputFormatter {
+    return when (format) {
+        OutputFormat.TXT -> TextOutputFormatter()
+        OutputFormat.JSON -> JsonOutputFormatter()
+        OutputFormat.YAML -> YamlOutputFormatter()
+        OutputFormat.UNKNOWN -> TextOutputFormatter()
     }
 }

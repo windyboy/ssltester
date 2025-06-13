@@ -9,10 +9,9 @@
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
-    id("com.gradleup.shadow") version "8.3.4"
-    //kotlin
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
+    // shadow
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 repositories {
@@ -23,31 +22,21 @@ repositories {
 // Version catalog for dependencies
 val versions = mapOf(
     "kotlin" to "1.9.22",
-    "coroutines" to "1.7.3",
     "slf4j" to "2.0.11",
     "logback" to "1.5.13",
-    "bouncycastle" to "1.78",
-    "mockito" to "5.11.0",
-    "mockito-kotlin" to "5.2.1",
     "jackson" to "2.16.1",
-    "kotlinx-serialization" to "1.6.2",
-    "ktor" to "2.3.7",
-    "junit" to "5.10.2",
-    "bytebuddy" to "1.14.12",
-    "kotlinx-datetime" to "0.5.0",
     "kotlin-logging" to "3.0.5"
 )
 
 dependencies {
     // Picocli for command line argument parsing
-    implementation(libs.picocli)
-    annotationProcessor(libs.picocli.codegen)
+    implementation("info.picocli:picocli:4.7.5")
+    annotationProcessor("info.picocli:picocli-codegen:4.7.5")
     
-    // JSON support
-    implementation(libs.jackson.databind)
-    implementation(libs.jackson.dataformat.yaml)
+    // JSON and YAML support
+    implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${versions["jackson"]}")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${versions["jackson"]}")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${versions["jackson"]}")
     
     // Logging
     implementation("org.slf4j:slf4j-api:${versions["slf4j"]}")
@@ -57,35 +46,15 @@ dependencies {
     // Kotlin dependencies
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions["coroutines"]}")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:${versions["kotlinx-datetime"]}")
-
-    // BouncyCastle for OCSP and CRL support
-    implementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
-    implementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
 
     // Testing
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.mockito:mockito-core:${versions["mockito"]}")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:${versions["mockito-kotlin"]}")
-    testImplementation("org.mockito:mockito-junit-jupiter:${versions["mockito"]}")
-    testImplementation("org.junit.jupiter:junit-jupiter:${versions["junit"]}")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${versions["junit"]}")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:${versions["junit"]}")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:${versions["junit"]}")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${versions["coroutines"]}")
-    testImplementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
-    testImplementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
-    testImplementation("net.bytebuddy:byte-buddy:1.14.12")
-    testImplementation("net.bytebuddy:byte-buddy-agent:1.14.12")
-    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
+    testImplementation("io.mockk:mockk:1.13.9")
 
-    // New dependencies
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${versions["kotlinx-serialization"]}")
-    implementation("io.ktor:ktor-client-core:${versions["ktor"]}")
-    implementation("io.ktor:ktor-client-cio:${versions["ktor"]}")
-    implementation("io.ktor:ktor-client-content-negotiation:${versions["ktor"]}")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:${versions["ktor"]}")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
 }
 
 // Java configuration
@@ -110,7 +79,7 @@ tasks.withType<JavaCompile> {
 
 // Application configuration
 application {
-    mainClass.set("org.example.SSLTest")
+    mainClass.set("org.example.SSLTestKt")
 }
 
 // Run task configuration
@@ -122,9 +91,12 @@ tasks.named<JavaExec>("run") {
 // Testing configuration
 tasks.test {
     useJUnitPlatform()
-    jvmArgs = listOf("-javaagent:${classpath.find { it.name.startsWith("byte-buddy-agent") }?.absolutePath}")
+    // jvmArgs = listOf("-javaagent:${classpath.find { it.name.startsWith(\"byte-buddy-agent\") }?.absolutePath}")
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
     }
+    
+    // Add test execution time listener
+    systemProperty("junit.platform.listener.default.class", "org.example.TestExecutionTimeListener")
 }
