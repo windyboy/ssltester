@@ -9,7 +9,6 @@
 - 证书链验证
 - 主机名验证
 - 客户端证书支持
-- OCSP和CRL检查
 - 详细的证书信息展示
 - 多种输出格式支持(TEXT, JSON, YAML)
 
@@ -102,19 +101,6 @@ ssltest https://example.com --format YAML
 ssltest https://example.com -v
 ```
 
-### 证书验证选项
-
-```bash
-# 禁用OCSP检查
-ssltest https://example.com --check-ocsp=false
-
-# 禁用CRL检查
-ssltest https://example.com --check-crl=false
-
-# 禁用证书详细信息日志
-ssltest https://example.com --log-cert-details=false
-```
-
 ### 配置文件
 
 可以将常用配置保存在YAML或JSON配置文件中：
@@ -138,9 +124,6 @@ clientCertFormat: "PEM"
 outputFile: "results.json"
 format: "JSON"
 verbose: true
-checkOCSP: true
-checkCRL: true
-logCertDetails: true
 ```
 
 ## 命令行参数
@@ -160,10 +143,7 @@ logCertDetails: true
 | `-o, --output` | 输出文件路径 | - |
 | `--format` | 输出格式 (TEXT, JSON, YAML) | TEXT |
 | `-v, --verbose` | 显示详细输出 | false |
-| `--log-cert-details` | 在日志中显示证书详细信息 | true |
 | `-c, --config` | 配置文件路径 (YAML/JSON) | - |
-| `--check-ocsp` | 是否检查OCSP | true |
-| `--check-crl` | 是否检查CRL | true |
 
 ## 退出码
 
@@ -190,8 +170,6 @@ HTTP状态码: 200
 协商的密码套件: TLS_AES_256_GCM_SHA384
 协议版本: TLSv1.3
 主机名验证: 通过
-OCSP检查: 通过
-CRL检查: 通过
 
 服务器证书链:
 [1] Subject: CN=example.com, O=Example Inc, C=US
@@ -215,8 +193,6 @@ CRL检查: 通过
   "cipherSuite": "TLS_AES_256_GCM_SHA384",
   "tlsVersion": "TLSv1.3",
   "hostnameVerification": "PASSED",
-  "ocspCheck": "PASSED",
-  "crlCheck": "PASSED",
   "certificateChain": [
     {
       "position": 1,
@@ -245,12 +221,6 @@ A: 使用 `--client-cert` 和 `--client-key` 参数指定客户端证书和私�
 
 ### Q: 如何处理自签名证书或内部CA签发的证书？
 A: 可以使用 `-k, --keystore` 参数指定包含这些证书的信任库。
-
-### Q: OCSP或CRL检查花费太长时间，如何跳过？
-A: 使用 `--check-ocsp=false` 和 `--check-crl=false` 参数禁用这些检查。
-
-### Q: 如何将检测结果保存到文件？
-A: 使用 `-o, --output` 参数指定输出文件路径，并可以用 `--format` 选择合适的输出格式。
 
 ## 许可证
 

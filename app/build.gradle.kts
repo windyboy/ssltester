@@ -10,6 +10,9 @@ plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
     id("com.gradleup.shadow") version "8.3.4"
+    //kotlin
+    id("org.jetbrains.kotlin.jvm") version "1.9.22"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
 }
 
 repositories {
@@ -17,62 +20,111 @@ repositories {
     mavenCentral()
 }
 
+// Version catalog for dependencies
+val versions = mapOf(
+    "kotlin" to "1.9.22",
+    "coroutines" to "1.7.3",
+    "slf4j" to "2.0.11",
+    "logback" to "1.5.13",
+    "bouncycastle" to "1.78",
+    "mockito" to "5.11.0",
+    "mockito-kotlin" to "5.2.1",
+    "jackson" to "2.16.1",
+    "kotlinx-serialization" to "1.6.2",
+    "ktor" to "2.3.7",
+    "junit" to "5.10.2",
+    "bytebuddy" to "1.14.12",
+    "kotlinx-datetime" to "0.5.0",
+    "kotlin-logging" to "3.0.5"
+)
+
 dependencies {
     // Picocli for command line argument parsing
-    implementation("info.picocli:picocli:4.7.5")
-    annotationProcessor("info.picocli:picocli-codegen:4.7.5")
+    implementation(libs.picocli)
+    annotationProcessor(libs.picocli.codegen)
     
     // JSON support
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.dataformat.yaml)
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${versions["jackson"]}")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${versions["jackson"]}")
     
     // Logging
-    implementation("org.slf4j:slf4j-api:2.0.11")
-    implementation("ch.qos.logback:logback-classic:1.5.13")
+    implementation("org.slf4j:slf4j-api:${versions["slf4j"]}")
+    implementation("io.github.microutils:kotlin-logging:${versions["kotlin-logging"]}")
+    implementation("ch.qos.logback:logback-classic:${versions["logback"]}")
+
+    // Kotlin dependencies
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions["coroutines"]}")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:${versions["kotlinx-datetime"]}")
+
+    // BouncyCastle for OCSP and CRL support
+    implementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
+    implementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
 
     // Testing
-    testImplementation("org.junit.jupiter:junit-jupiter:5.12.1")
-    testImplementation("org.bouncycastle:bcprov-jdk18on:1.78")
-    testImplementation("org.bouncycastle:bcpkix-jdk18on:1.78")
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("org.mockito:mockito-core:${versions["mockito"]}")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:${versions["mockito-kotlin"]}")
+    testImplementation("org.mockito:mockito-junit-jupiter:${versions["mockito"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter:${versions["junit"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${versions["junit"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:${versions["junit"]}")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:${versions["junit"]}")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${versions["coroutines"]}")
+    testImplementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
+    testImplementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
+    testImplementation("net.bytebuddy:byte-buddy:1.14.12")
+    testImplementation("net.bytebuddy:byte-buddy-agent:1.14.12")
+    testImplementation("io.mockk:mockk:1.13.10")
+
+    // New dependencies
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${versions["kotlinx-serialization"]}")
+    implementation("io.ktor:ktor-client-core:${versions["ktor"]}")
+    implementation("io.ktor:ktor-client-cio:${versions["ktor"]}")
+    implementation("io.ktor:ktor-client-content-negotiation:${versions["ktor"]}")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:${versions["ktor"]}")
 }
 
-testing {
-    suites {
-        // Configure the built-in test suite
-        val test by getting(JvmTestSuite::class) {
-            // Use JUnit Jupiter test framework
-            useJUnitJupiter("5.12.1")
-        }
-    }
-}
-
-// Apply a specific Java toolchain to ease working on different environments.
+// Java configuration
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
+// Kotlin configuration
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "21"
+        freeCompilerArgs = listOf("-Xjsr305=strict")
+    }
+}
+
+// Java compilation configuration
 tasks.withType<JavaCompile> {
     options.compilerArgs.addAll(listOf("--enable-preview"))
 }
 
-tasks.withType<JavaExec> {
-    jvmArgs("--enable-preview")
-}
-
-// application {
-//     // Define the main class for the application.
-//     mainClass = "org.example.App"
-// }
-
+// Application configuration
 application {
-    // this makes `./gradlew run` pick up your SSLTest.main
     mainClass.set("org.example.SSLTest")
 }
 
-// Optional: configure the built-in `run` task with default args
+// Run task configuration
 tasks.named<JavaExec>("run") {
-    // Enable command line argument passing
     standardInput = System.`in`
+    jvmArgs("--enable-preview")
+}
+
+// Testing configuration
+tasks.test {
+    useJUnitPlatform()
+    jvmArgs = listOf("-javaagent:${classpath.find { it.name.startsWith("byte-buddy-agent") }?.absolutePath}")
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
 }
