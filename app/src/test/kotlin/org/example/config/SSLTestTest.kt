@@ -92,14 +92,15 @@ class SSLTestTest {
     @Test
     fun `test main function with invalid host`() {
         val time = measureTimeMillis {
-            val output = captureSystemOut {
+            val output = stripAnsiCodes(captureSystemOut {
                 main(arrayOf("invalid-host-that-does-not-exist.com", "--connect-timeout", "500"))
-            }
+            })
             // 验证输出包含预期的错误信息
-            assertTrue(output.contains("Status: Failed"))
+            assertTrue(output.contains("✗ INSECURE"))
             assertTrue(output.contains("Protocol: Unknown"))
             assertTrue(output.contains("Cipher Suite: Unknown"))
             assertTrue(output.contains("Certificate Chain: Empty"))
+            assertTrue(output.contains("Handshake Time:"))
         }
         println("test main function with invalid host took ${time}ms")
         // 确保测试不会花费太长时间
@@ -171,5 +172,9 @@ class SSLTestTest {
         } finally {
             System.setOut(originalOut)
         }
+    }
+
+    private fun stripAnsiCodes(input: String): String {
+        return input.replace("""\u001B\[[;\d]*m""".toRegex(), "")
     }
 } 

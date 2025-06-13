@@ -135,8 +135,8 @@ class SSLConnectionTesterImpl : SSLConnectionTester {
         return SSLConnection(
             host = host,
             port = port,
-            protocol = errorMessage,
-            cipherSuite = "N/A",
+            protocol = "Unknown",
+            cipherSuite = "Unknown",
             handshakeTime = Duration.between(startTime, Instant.now()),
             isSecure = false,
             certificateChain = emptyList()

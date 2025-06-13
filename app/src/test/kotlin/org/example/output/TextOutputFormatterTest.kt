@@ -16,6 +16,10 @@ import kotlin.system.measureTimeMillis
 class TextOutputFormatterTest {
     private val formatter = TextOutputFormatter()
 
+    private fun stripAnsiCodes(input: String): String {
+        return input.replace("""\u001B\[[;\d]*m""".toRegex(), "")
+    }
+
     @Test
     fun `test format successful connection`() {
         val time = measureTimeMillis {
@@ -25,6 +29,9 @@ class TextOutputFormatterTest {
             every { certificate.notBefore } returns Date(System.currentTimeMillis() - 86400000)
             every { certificate.notAfter } returns Date(System.currentTimeMillis() + 86400000 * 90)
             every { certificate.serialNumber } returns BigInteger.valueOf(123456789)
+            every { certificate.encoded } returns "test".toByteArray()
+            every { certificate.keyUsage } returns null
+            every { certificate.extendedKeyUsage } returns null
 
             val result = SSLConnection(
                 host = "github.com",
@@ -36,14 +43,14 @@ class TextOutputFormatterTest {
                 certificateChain = listOf(certificate)
             )
 
-            val output = formatter.format(result)
+            val output = stripAnsiCodes(formatter.format(result))
 
-            assertTrue(output.contains("Status: Success"))
+            assertTrue(output.contains("✓ SECURE"))
             assertTrue(output.contains("Protocol: TLSv1.3"))
             assertTrue(output.contains("Cipher Suite: TLS_AES_256_GCM_SHA384"))
-            assertTrue(output.contains("Subject: CN=example.com"))
-            assertTrue(output.contains("Issuer: CN=Let's Encrypt Authority X3"))
-            assertTrue(output.contains("Valid Until:"))
+            assertTrue(output.contains("主体: CN=example.com"))
+            assertTrue(output.contains("颁发者: CN=Let's Encrypt Authority X3"))
+            assertTrue(output.contains("有效期:"))
         }
         println("test format successful connection took ${time}ms")
     }
@@ -54,20 +61,20 @@ class TextOutputFormatterTest {
             val result = SSLConnection(
                 host = "example.com",
                 port = 443,
-                protocol = "",
-                cipherSuite = "",
+                protocol = "Unknown",
+                cipherSuite = "Unknown",
                 handshakeTime = Duration.ofMillis(100),
                 isSecure = false,
                 certificateChain = emptyList()
             )
 
-            val output = formatter.format(result)
+            val output = stripAnsiCodes(formatter.format(result))
 
             assertTrue(output.contains("Host: example.com"))
             assertTrue(output.contains("Port: 443"))
-            assertTrue(output.contains("Status: Failed"))
-            assertTrue(output.contains("Protocol: N/A"))
-            assertTrue(output.contains("Cipher Suite: N/A"))
+            assertTrue(output.contains("✗ INSECURE"))
+            assertTrue(output.contains("Protocol: Unknown"))
+            assertTrue(output.contains("Cipher Suite: Unknown"))
             assertTrue(output.contains("Certificate Chain: Empty"))
             assertTrue(output.contains("Handshake Time: 100ms"))
         }
