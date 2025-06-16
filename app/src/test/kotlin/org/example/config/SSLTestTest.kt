@@ -96,11 +96,11 @@ class SSLTestTest {
                 main(arrayOf("invalid-host-that-does-not-exist.com", "--connect-timeout", "500"))
             })
             // 验证输出包含预期的错误信息
-            assertTrue(output.contains("✗ INSECURE"))
-            assertTrue(output.contains("Protocol: Unknown"))
-            assertTrue(output.contains("Cipher Suite: Unknown"))
-            assertTrue(output.contains("Certificate Chain: Empty"))
-            assertTrue(output.contains("Handshake Time:"))
+            assertTrue(output.contains("✗ 不安全"))
+            assertTrue(output.contains("协议版本: Unknown"))
+            assertTrue(output.contains("加密套件: Unknown"))
+            assertTrue(output.contains("证书链: 空"))
+            assertTrue(output.contains("握手时间:"))
         }
         println("test main function with invalid host took ${time}ms")
         // 确保测试不会花费太长时间
@@ -148,16 +148,18 @@ class SSLTestTest {
     @Test
     fun `test main function with all options`() {
         val time = measureTimeMillis {
-            val output = captureSystemOut {
+            val output = stripAnsiCodes(captureSystemOut {
                 main(arrayOf(
                     "github.com",
-                    "443",
+                    "--port", "443",
                     "--connect-timeout", "200",
                     "--output-format", "TXT"
                 ))
-            }
-            // 验证输出包含一些预期的内容
-            assertTrue(output.contains("Connection") || output.contains("Error:"))
+            })
+            // 验证输出包含预期的内容
+            assertTrue(output.contains("SSL/TLS 连接测试结果"))
+            assertTrue(output.contains("主机: github.com"))
+            assertTrue(output.contains("端口: 443"))
         }
         println("test main function with all options took ${time}ms")
     }

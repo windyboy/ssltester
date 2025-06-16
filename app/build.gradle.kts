@@ -100,3 +100,9 @@ tasks.test {
     // Add test execution time listener
     systemProperty("junit.platform.listener.default.class", "org.example.TestExecutionTimeListener")
 }
+
+tasks.shadowJar {
+    archiveBaseName.set("ssl-test")
+    archiveClassifier.set("")
+    archiveVersion.set("0.0.1")
+}
