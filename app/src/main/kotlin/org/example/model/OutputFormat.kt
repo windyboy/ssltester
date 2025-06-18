@@ -1,8 +1,19 @@
 package org.example.model
 
-enum class OutputFormat {
-    TXT,
-    JSON,
-    YAML,
-    UNKNOWN,
+sealed class OutputFormat(val value: String) {
+    data object TXT : OutputFormat("TXT")
+    data object JSON : OutputFormat("JSON")
+    data object YAML : OutputFormat("YAML")
+    data object UNKNOWN : OutputFormat("UNKNOWN")
+
+    companion object {
+        fun valueOf(value: String): OutputFormat {
+            return when (value.uppercase()) {
+                "TXT" -> TXT
+                "JSON" -> JSON
+                "YAML" -> YAML
+                else -> UNKNOWN
+            }
+        }
+    }
 }

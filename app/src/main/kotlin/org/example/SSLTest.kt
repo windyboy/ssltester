@@ -24,50 +24,57 @@ fun main(args: Array<String>) =
             println("Options:")
             println("  --port <port>              Port number (default: 443)")
             println("  --connect-timeout <ms>     Connection timeout in milliseconds (default: 5000)")
-            println("  --output-format <format>   Output format (TXT, JSON, YAML) (default: TXT)")
+            println("  --output-format <format>   Output format (txt, json, yaml) (default: txt)")
             println("  --output-file <file>       Output file path (optional)")
             return@runBlocking
         }
 
-        try {
-            val host = args[0]
-            val port = args.getOrNull(1)?.toIntOrNull() ?: 443
-            val config = parseConfig(args.drop(2).toTypedArray())
-            val tester = SSLConnectionTesterImpl()
-            val connection = tester.testConnection(host, port, config)
-            val formatter = createFormatter(config.format)
-            val output = formatter.format(connection)
-            if (config.outputFile != null) {
-                File(config.outputFile).writeText(output)
-            } else {
-                println(output)
+        val host = args[0]
+        val port = args.getOrNull(1)?.toIntOrNull() ?: 443
+        val config = parseConfig(args.drop(2).toTypedArray())
+        val tester = SSLConnectionTesterImpl()
+        
+        tester.testConnection(host, port, config)
+            .onSuccess { connection ->
+                val formatter = createFormatter(config.format)
+                val output = formatter.format(connection)
+                if (config.outputFile != null) {
+                    File(config.outputFile).writeText(output)
+                } else {
+                    println(output)
+                }
             }
-        } catch (e: Exception) {
-            val failedConnection =
-                SSLConnection(
-                    host = args[0],
-                    port = args.getOrNull(1)?.toIntOrNull() ?: 443,
-                    protocol = "",
-                    cipherSuite = "",
+            .onFailure { error ->
+                val failedConnection = SSLConnection(
+                    host = host,
+                    port = port,
+                    protocol = "Error: ${error.message}",
+                    cipherSuite = "Unknown",
                     handshakeTime = Duration.ofMillis(0),
                     isSecure = false,
                     certificateChain = emptyList(),
                 )
-            val formatter = createFormatter(OutputFormat.TXT)
-            val output = formatter.format(failedConnection)
-            println(output)
-        }
+                val formatter = createFormatter(OutputFormat.TXT)
+                println(formatter.format(failedConnection))
+            }
     }
 
 fun parseConfig(args: Array<String>): SSLTestConfig {
     var connectionTimeout = 5000
-    var format = OutputFormat.TXT
+    var format: OutputFormat = OutputFormat.TXT
     var outputFile: String? = null
     var i = 0
     while (i < args.size) {
         when (args[i]) {
             "--connect-timeout" -> connectionTimeout = args[++i].toInt()
-            "--output-format" -> format = OutputFormat.valueOf(args[++i].uppercase())
+            "--output-format" -> {
+                format = when (args[++i].lowercase()) {
+                    "txt" -> OutputFormat.TXT
+                    "json" -> OutputFormat.JSON
+                    "yaml" -> OutputFormat.YAML
+                    else -> OutputFormat.UNKNOWN
+                }
+            }
             "--output-file" -> outputFile = args[++i]
         }
         i++
@@ -79,11 +86,9 @@ fun parseConfig(args: Array<String>): SSLTestConfig {
     )
 }
 
-fun createFormatter(format: OutputFormat): OutputFormatter {
-    return when (format) {
-        OutputFormat.TXT -> TextOutputFormatter()
-        OutputFormat.JSON -> JsonOutputFormatter()
-        OutputFormat.YAML -> YamlOutputFormatter()
-        OutputFormat.UNKNOWN -> TextOutputFormatter()
-    }
+fun createFormatter(format: OutputFormat): OutputFormatter = when (format) {
+    OutputFormat.TXT -> TextOutputFormatter()
+    OutputFormat.JSON -> JsonOutputFormatter()
+    OutputFormat.YAML -> YamlOutputFormatter()
+    OutputFormat.UNKNOWN -> TextOutputFormatter()
 }

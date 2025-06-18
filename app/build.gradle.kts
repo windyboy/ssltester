@@ -9,7 +9,7 @@
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
-    id("org.jetbrains.kotlin.jvm") version "1.9.22"
+    id("org.jetbrains.kotlin.jvm") version "2.0.0-Beta4"
     // shadow - update to new plugin ID and latest stable version
     id("com.gradleup.shadow") version "8.3.6"
     // Add ktlint plugin for code formatting
@@ -24,7 +24,7 @@ repositories {
 // Version catalog for dependencies
 val versions =
     mapOf(
-        "kotlin" to "1.9.22",
+        "kotlin" to "2.0.0-Beta4",
         "slf4j" to "2.0.11",
         "logback" to "1.5.13",
         "jackson" to "2.16.1",
@@ -74,8 +74,8 @@ java {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
         jvmTarget = "21"
-        apiVersion = "1.9"
-        languageVersion = "1.9"
+        apiVersion = "2.0"
+        languageVersion = "2.0"
         freeCompilerArgs =
             listOf(
                 "-Xjsr305=strict",
@@ -83,7 +83,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
                 "-Xjvm-default=all",
                 "-Xno-param-assertions",
                 "-Xno-call-assertions",
-                "-Xno-receiver-assertions",
+                "-Xno-receiver-assertions"
             )
     }
 }
@@ -141,8 +141,8 @@ kotlin {
     jvmToolchain(21)
     sourceSets.all {
         languageSettings {
-            languageVersion = "1.9"
-            apiVersion = "1.9"
+            languageVersion = "2.0"
+            apiVersion = "2.0"
         }
     }
 }

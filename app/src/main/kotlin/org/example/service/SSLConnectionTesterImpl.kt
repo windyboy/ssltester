@@ -4,11 +4,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.example.SSLTestConfig
+import org.example.exception.SSLTestException
 import org.example.model.SSLConnection
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.security.KeyStore
 import java.security.cert.X509Certificate
 import java.time.Duration
@@ -18,53 +20,49 @@ import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLProtocolException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
+import kotlin.io.use
 
 class SSLConnectionTesterImpl : SSLConnectionTester {
     override suspend fun testConnection(
         host: String,
         port: Int,
         config: SSLTestConfig,
-    ): SSLConnection {
-        return withContext(Dispatchers.IO) {
-            val startTime = Instant.now()
-            var socket: Socket? = null
-            var sslSocket: SSLSocket? = null
-
+    ): Result<SSLConnection> = withContext(Dispatchers.IO) {
+        val startTime = Instant.now()
+        
+        runCatching {
+            val socket = Socket()
             try {
-                val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-                trustManagerFactory.init(null as KeyStore?)
-                val sslContext = SSLContext.getInstance("TLS")
-                sslContext.init(null, trustManagerFactory.trustManagers, null)
-                val socketFactory = sslContext.socketFactory
-
-                socket = Socket()
                 socket.soTimeout = config.connectionTimeout
-
-                try {
-                    withTimeout(config.connectionTimeout.toLong()) {
-                        socket.connect(InetSocketAddress(host, port), config.connectionTimeout)
-                    }
-
-                    sslSocket = socketFactory.createSocket(socket, host, port, true) as SSLSocket
-                    sslSocket.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
-                    sslSocket.soTimeout = config.connectionTimeout
-
+                withTimeout(config.connectionTimeout.toLong()) {
+                    socket.connect(InetSocketAddress(host, port), config.connectionTimeout)
+                }
+                
+                val sslContext = initializeSSL().getOrThrow()
+                val sslSocket = sslContext.socketFactory.createSocket(
+                    socket,
+                    host,
+                    port,
+                    true
+                ) as SSLSocket
+                
+                sslSocket.use {
+                    it.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
+                    it.soTimeout = config.connectionTimeout
+                    
                     try {
                         withTimeout(config.connectionTimeout.toLong()) {
-                            sslSocket.startHandshake()
+                            it.startHandshake()
                         }
-
+                        
                         val endTime = Instant.now()
                         val handshakeTime = Duration.between(startTime, endTime)
-                        val session = sslSocket.session
-
-                        val certificates =
-                            try {
-                                session.peerCertificates.map { it as X509Certificate }
-                            } catch (e: Exception) {
-                                emptyList()
-                            }
-
+                        val session = it.session
+                        
+                        val certificates = runCatching {
+                            session.peerCertificates.map { cert -> cert as X509Certificate }
+                        }.getOrDefault(emptyList())
+                        
                         SSLConnection(
                             host = host,
                             port = port,
@@ -75,58 +73,85 @@ class SSLConnectionTesterImpl : SSLConnectionTester {
                             certificateChain = certificates,
                         )
                     } catch (e: Exception) {
-                        createFailedConnection(
-                            host,
-                            port,
-                            startTime,
-                            when (e) {
-                                is SSLHandshakeException -> "SSL Handshake failed: ${e.message}"
-                                is SSLProtocolException -> "SSL Protocol error: ${e.message}"
-                                is SocketTimeoutException -> "SSL Handshake timeout"
-                                else -> "SSL Error: ${e.message}"
-                            },
-                        )
+                        throw when (e) {
+                            is SSLHandshakeException -> SSLTestException.HandshakeError(
+                                host = host,
+                                port = port,
+                                message = "SSL Handshake failed: ${e.message}",
+                                cause = e
+                            )
+                            is SSLProtocolException -> SSLTestException.HandshakeError(
+                                host = host,
+                                port = port,
+                                message = "SSL Protocol error: ${e.message}",
+                                cause = e
+                            )
+                            is SocketTimeoutException -> SSLTestException.HandshakeError(
+                                host = host,
+                                port = port,
+                                message = "SSL Handshake timeout",
+                                cause = e
+                            )
+                            else -> SSLTestException.HandshakeError(
+                                host = host,
+                                port = port,
+                                message = "SSL Error: ${e.message}",
+                                cause = e
+                            )
+                        }
+                    } finally {
+                        runCatching { sslSocket.close() }
                     }
-                } catch (e: Exception) {
-                    createFailedConnection(
-                        host,
-                        port,
-                        startTime,
-                        when (e) {
-                            is SocketTimeoutException -> "Connection timeout"
-                            is IOException -> "Connection failed: ${e.message}"
-                            else -> "Error: ${e.message}"
-                        },
-                    )
                 }
             } catch (e: Exception) {
-                createFailedConnection(host, port, startTime, "Initialization error: ${e.message}")
-            } finally {
-                try {
-                    sslSocket?.close()
-                } catch (_: Exception) {
-                }
-                try {
-                    socket?.close()
-                } catch (_: Exception) {
+                runCatching { socket.close() }
+                throw when (e) {
+                    is UnknownHostException -> SSLTestException.ConnectionError(
+                        host = host,
+                        port = port,
+                        message = "Unknown host: ${e.message}",
+                        cause = e
+                    )
+                    is SocketTimeoutException -> SSLTestException.ConnectionError(
+                        host = host,
+                        port = port,
+                        message = "Connection timeout",
+                        cause = e
+                    )
+                    is IOException -> SSLTestException.ConnectionError(
+                        host = host,
+                        port = port,
+                        message = "Connection failed: ${e.message ?: "Connection refused"}",
+                        cause = e
+                    )
+                    is SSLTestException -> e
+                    else -> SSLTestException.ConnectionError(
+                        host = host,
+                        port = port,
+                        message = "Unknown error: ${e.message ?: e.toString()}",
+                        cause = e
+                    )
                 }
             }
-        }
-    }
-
-    private fun createFailedConnection(
-        host: String,
-        port: Int,
-        startTime: Instant,
-        errorMessage: String,
-    ): SSLConnection =
-        SSLConnection(
-            host = host,
-            port = port,
-            protocol = "Unknown ($errorMessage)",
-            cipherSuite = "Unknown",
-            handshakeTime = Duration.between(startTime, Instant.now()),
-            isSecure = false,
-            certificateChain = emptyList(),
+        }.fold(
+            onSuccess = { Result.success(it) },
+            onFailure = { e ->
+                Result.failure(when (e) {
+                    is SSLTestException -> e
+                    else -> SSLTestException.ConfigurationError(
+                        "SSL initialization error: ${e.localizedMessage ?: e.toString()}",
+                        e
+                    )
+                })
+            }
         )
+    }
+    
+    private fun initializeSSL(): Result<SSLContext> = runCatching {
+        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        trustManagerFactory.init(null as KeyStore?)
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, trustManagerFactory.trustManagers, null)
+        sslContext
+    }
 }

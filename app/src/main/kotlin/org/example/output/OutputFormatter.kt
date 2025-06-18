@@ -2,7 +2,7 @@ package org.example.output
 
 import org.example.model.SSLConnection
 
-interface OutputFormatter {
+sealed interface OutputFormatter {
     fun format(connection: SSLConnection): String
 
     fun getFileExtension(): String

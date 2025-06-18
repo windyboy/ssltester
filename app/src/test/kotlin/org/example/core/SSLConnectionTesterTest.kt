@@ -2,11 +2,13 @@ package org.example.core
 
 import kotlinx.coroutines.runBlocking
 import org.example.SSLTestConfig
+import org.example.exception.SSLTestException
 import org.example.service.SSLConnectionTesterImpl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 class SSLConnectionTesterTest {
     private val tester = SSLConnectionTesterImpl()
@@ -14,13 +16,14 @@ class SSLConnectionTesterTest {
     @Test
     fun `test successful connection to valid host`() =
         runBlocking {
-            val connection =
-                tester.testConnection(
-                    "github.com",
-                    443,
-                    SSLTestConfig(connectionTimeout = 5000),
-                )
+            val result = tester.testConnection(
+                "github.com",
+                443,
+                SSLTestConfig(connectionTimeout = 5000),
+            )
 
+            assertTrue(result.isSuccess)
+            val connection = result.getOrThrow()
             assertTrue(connection.isSecure)
             assertEquals("github.com", connection.host)
             assertEquals(443, connection.port)
@@ -32,43 +35,51 @@ class SSLConnectionTesterTest {
     @Test
     fun `test connection to invalid host`() =
         runBlocking {
-            val connection =
-                tester.testConnection(
-                    "invalid-host-that-does-not-exist.com",
-                    443,
-                    SSLTestConfig(connectionTimeout = 1000),
-                )
+            val result = tester.testConnection(
+                "invalid-host-that-does-not-exist.com",
+                443,
+                SSLTestConfig(connectionTimeout = 1000),
+            )
 
-            assertFalse(connection.isSecure)
-            assertTrue(connection.protocol.contains("Unknown"))
-            assertTrue(connection.certificateChain.isEmpty())
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<SSLTestException.ConnectionError>(error)
+            assertTrue(error.message.contains("Connection failed") || error.message.contains("Unknown"))
         }
 
     @Test
     fun `test connection timeout`() =
         runBlocking {
-            val connection =
-                tester.testConnection(
-                    "github.com",
-                    443,
-                    SSLTestConfig(connectionTimeout = 1),
-                )
+            val result = tester.testConnection(
+                "github.com",
+                443,
+                SSLTestConfig(connectionTimeout = 1),
+            )
 
-            assertFalse(connection.isSecure)
-            assertTrue(connection.protocol.contains("timeout") || connection.protocol.contains("Unknown"))
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<SSLTestException>(error)
+            assertTrue(error?.message?.contains("timeout") == true || error?.message?.contains("Unknown") == true)
         }
 
     @Test
     fun `test connection to invalid port`() =
         runBlocking {
-            val connection =
-                tester.testConnection(
-                    "github.com",
-                    1,
-                    SSLTestConfig(connectionTimeout = 1000),
-                )
+            val result = tester.testConnection(
+                "localhost",
+                44443,  // Using a port that's typically not in use
+                SSLTestConfig(connectionTimeout = 5000),
+            )
 
-            assertFalse(connection.isSecure)
-            assertTrue(connection.protocol.contains("Connection failed") || connection.protocol.contains("Unknown"))
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<SSLTestException.ConnectionError>(error)
+            assertTrue(
+                error.message.contains("Connection failed") || 
+                error.message.contains("Unknown") ||
+                error.message.contains("Connection refused") ||
+                error.message.contains("timed out"),
+                "Unexpected error message: ${error?.message}"
+            )
         }
 }
