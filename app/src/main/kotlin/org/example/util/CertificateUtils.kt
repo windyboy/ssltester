@@ -2,9 +2,10 @@ package org.example.util
 
 import java.security.cert.X509Certificate
 import java.text.SimpleDateFormat
-import java.util.*
 
 object CertificateUtils {
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+
     fun getCertificateSubject(certificate: X509Certificate): String {
         return certificate.subjectX500Principal.toString()
     }
@@ -14,11 +15,9 @@ object CertificateUtils {
     }
 
     fun getCertificateValidityPeriod(certificate: X509Certificate): String {
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-        return """
-            Not Before: ${dateFormat.format(certificate.notBefore)}
-            Not After: ${dateFormat.format(certificate.notAfter)}
-        """.trimIndent()
+        val notBefore = dateFormat.format(certificate.notBefore)
+        val notAfter = dateFormat.format(certificate.notAfter)
+        return "Not Before: $notBefore, Not After: $notAfter"
     }
 
     fun getCertificateSerialNumber(certificate: X509Certificate): String {

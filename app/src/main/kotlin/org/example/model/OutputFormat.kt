@@ -1,4 +1,4 @@
-package org.example.domain.model
+package org.example.model
 
 enum class OutputFormat {
     TXT,

@@ -1,11 +1,8 @@
-package org.example.domain.model
+package org.example.model
 
 import java.security.cert.X509Certificate
 import java.time.Duration
 
-/**
- * Represents an SSL/TLS connection in the domain.
- */
 data class SSLConnection(
     val host: String,
     val port: Int,

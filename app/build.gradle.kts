@@ -10,8 +10,8 @@ plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
-    // shadow
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    // shadow - update to new plugin ID and latest stable version
+    id("com.gradleup.shadow") version "8.3.6"
 }
 
 repositories {
@@ -37,6 +37,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${versions["jackson"]}")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${versions["jackson"]}")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${versions["jackson"]}")
     
     // Logging
     implementation("org.slf4j:slf4j-api:${versions["slf4j"]}")
@@ -52,6 +53,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
     testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("net.bytebuddy:byte-buddy:1.14.12")
+    testImplementation("net.bytebuddy:byte-buddy-agent:1.14.12")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
@@ -91,7 +94,7 @@ tasks.named<JavaExec>("run") {
 // Testing configuration
 tasks.test {
     useJUnitPlatform()
-    // jvmArgs = listOf("-javaagent:${classpath.find { it.name.startsWith(\"byte-buddy-agent\") }?.absolutePath}")
+    jvmArgs = listOf("-javaagent:${classpath.find { it.name.contains("byte-buddy-agent") }?.absolutePath}")
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
@@ -105,4 +108,5 @@ tasks.shadowJar {
     archiveBaseName.set("ssl-test")
     archiveClassifier.set("")
     archiveVersion.set("0.0.1")
+    mergeServiceFiles()
 }

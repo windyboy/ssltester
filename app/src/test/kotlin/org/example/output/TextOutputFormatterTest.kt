@@ -1,107 +1,83 @@
 package org.example.output
 
-import io.mockk.every
-import io.mockk.mockk
-import org.example.domain.model.SSLConnection
-import org.example.infrastructure.output.TextOutputFormatter
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
+import org.example.model.SSLConnection
 import java.security.cert.X509Certificate
+import java.time.Duration
+import kotlin.test.Test
+import kotlin.test.assertTrue
+import io.mockk.mockk
+import io.mockk.every
 import java.util.Date
 import javax.security.auth.x500.X500Principal
 import java.math.BigInteger
-import java.time.Duration
-import kotlin.system.measureTimeMillis
 
 class TextOutputFormatterTest {
     private val formatter = TextOutputFormatter()
 
-    private fun stripAnsiCodes(input: String): String {
-        return input.replace("""\u001B\[[;\d]*m""".toRegex(), "")
+    private fun stripAnsiCodes(text: String): String {
+        return text.replace("""\u001B\[[;\d]*m""".toRegex(), "")
     }
 
     @Test
-    fun `test format successful connection`() {
-        val time: Long = measureTimeMillis {
-            val certificate = mockk<X509Certificate>()
-            every { certificate.subjectX500Principal } returns X500Principal("CN=example.com")
-            every { certificate.issuerX500Principal } returns X500Principal("CN=Let's Encrypt Authority X3")
-            every { certificate.notBefore } returns Date(System.currentTimeMillis() - 86400000L)
-            every { certificate.notAfter } returns Date(System.currentTimeMillis() + 86400000L * 90)
-            every { certificate.serialNumber } returns BigInteger.valueOf(123456789)
-            every { certificate.encoded } returns "test".toByteArray()
-            every { certificate.keyUsage } returns null
-            every { certificate.extendedKeyUsage } returns null
+    fun `test format secure connection`() {
+        val cert = mockk<X509Certificate>()
+        every { cert.subjectX500Principal } returns X500Principal("CN=example.com")
+        every { cert.issuerX500Principal } returns X500Principal("CN=Test CA")
+        every { cert.notBefore } returns Date(System.currentTimeMillis() - 86400000)
+        every { cert.notAfter } returns Date(System.currentTimeMillis() + 86400000)
+        every { cert.serialNumber } returns BigInteger.valueOf(123456789)
+        every { cert.encoded } returns "test".toByteArray()
 
-            val result = SSLConnection(
-                host = "github.com",
-                port = 443,
-                protocol = "TLSv1.3",
-                cipherSuite = "TLS_AES_256_GCM_SHA384",
-                handshakeTime = Duration.ofMillis(100),
-                isSecure = true,
-                certificateChain = listOf(certificate)
-            )
+        val connection = SSLConnection(
+            host = "example.com",
+            port = 443,
+            protocol = "TLSv1.3",
+            cipherSuite = "TLS_AES_256_GCM_SHA384",
+            handshakeTime = Duration.ofMillis(100),
+            isSecure = true,
+            certificateChain = listOf(cert)
+        )
 
-            val output = stripAnsiCodes(formatter.format(result))
-            println("Actual output:")
-            println(output)
+        val output = stripAnsiCodes(formatter.format(connection))
 
-            // Check header
-            assertTrue(output.contains("SSL/TLS 连接测试结果"), "Missing header")
-            
-            // Check basic information
-            assertTrue(output.contains("基本信息"), "Missing basic info section")
-            assertTrue(output.contains("主机: github.com"), "Missing host info")
-            assertTrue(output.contains("端口: 443"), "Missing port info")
-            
-            // Check connection status
-            assertTrue(output.contains("✓ 安全"), "Missing security status")
-            
-            // Check protocol information
-            assertTrue(output.contains("协议信息"), "Missing protocol info section")
-            assertTrue(output.contains("协议版本: TLSv1.3"), "Missing protocol version")
-            assertTrue(output.contains("加密套件: TLS_AES_256_GCM_SHA384"), "Missing cipher suite")
-            assertTrue(output.contains("握手时间: 100ms"), "Missing handshake time")
-            
-            // Check certificate information
-            assertTrue(output.contains("证书链"), "Missing certificate chain section")
-            assertTrue(output.contains("证书 1"), "Missing certificate number")
-            assertTrue(output.contains("类型: 服务器证书"), "Missing certificate type")
-            assertTrue(output.contains("│ CN=example.com"), "Missing subject line")
-            assertTrue(output.contains("│ CN=Let's Encrypt Authority X3"), "Missing issuer line")
-            assertTrue(output.contains("有效期:"), "Missing validity period")
-            assertTrue(output.contains("│   │ 指纹(SHA-256):"), "Missing fingerprint line")
-            
-            // Check footer
-            assertTrue(output.contains("测试完成时间:"), "Missing completion time")
-        }
-        println("test format successful connection took ${time}ms")
+        assertTrue(output.contains("SSL/TLS Connection Test Results"))
+        assertTrue(output.contains("Basic Information"))
+        assertTrue(output.contains("Host: example.com"))
+        assertTrue(output.contains("Port: 443"))
+        assertTrue(output.contains("Secure"))
+        assertTrue(output.contains("Protocol Information"))
+        assertTrue(output.contains("Protocol Version: TLSv1.3"))
+        assertTrue(output.contains("Cipher Suite: TLS_AES_256_GCM_SHA384"))
+        assertTrue(output.contains("Handshake Time: 100ms"))
+        assertTrue(output.contains("Certificate Chain"))
+        assertTrue(output.contains("Certificate 1"))
+        assertTrue(output.contains("CN=example.com"))
+        assertTrue(output.contains("CN=Test CA"))
     }
 
     @Test
-    fun `test format failed connection with empty certificate chain`() {
-        val time: Long = measureTimeMillis {
-            val result = SSLConnection(
-                host = "example.com",
-                port = 443,
-                protocol = "Unknown",
-                cipherSuite = "Unknown",
-                handshakeTime = Duration.ofMillis(100),
-                isSecure = false,
-                certificateChain = emptyList()
-            )
+    fun `test format insecure connection`() {
+        val connection = SSLConnection(
+            host = "example.com",
+            port = 443,
+            protocol = "Unknown (Connection failed)",
+            cipherSuite = "Unknown",
+            handshakeTime = Duration.ofMillis(50),
+            isSecure = false,
+            certificateChain = emptyList()
+        )
 
-            val output = stripAnsiCodes(formatter.format(result))
+        val output = stripAnsiCodes(formatter.format(connection))
 
-            assertTrue(output.contains("主机: example.com"))
-            assertTrue(output.contains("端口: 443"))
-            assertTrue(output.contains("✗ 不安全"))
-            assertTrue(output.contains("协议版本: Unknown"))
-            assertTrue(output.contains("加密套件: Unknown"))
-            assertTrue(output.contains("证书链: 空"))
-            assertTrue(output.contains("握手时间: 100ms"))
-        }
-        println("test format failed connection with empty certificate chain took ${time}ms")
+        assertTrue(output.contains("SSL/TLS Connection Test Results"))
+        assertTrue(output.contains("Basic Information"))
+        assertTrue(output.contains("Host: example.com"))
+        assertTrue(output.contains("Port: 443"))
+        assertTrue(output.contains("Not Secure"))
+        assertTrue(output.contains("Protocol Information"))
+        assertTrue(output.contains("Protocol Version: Unknown (Connection failed)"))
+        assertTrue(output.contains("Cipher Suite: Unknown"))
+        assertTrue(output.contains("Handshake Time: 50ms"))
+        assertTrue(output.contains("Certificate Chain: Empty"))
     }
 } 

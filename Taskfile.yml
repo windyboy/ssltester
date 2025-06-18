@@ -9,6 +9,8 @@ vars:
   TIMEOUT: '{{.TIMEOUT | default "5000"}}'
   FORMAT: '{{.FORMAT | default "TXT"}}'
   OUTPUT: '{{.OUTPUT | default ""}}'
+  DOCKER_REGISTRY: '{{.DOCKER_REGISTRY | default "ghcr.io"}}'
+  DOCKER_IMAGE: '{{.DOCKER_REGISTRY}}/{{.GITHUB_USER}}/{{.PROJECT_NAME}}'
 
 tasks:
   help:
@@ -16,13 +18,20 @@ tasks:
     cmds:
       - |
         echo "Available tasks:"
-        echo "  task clean        - Clean the project build files"
-        echo "  task compile      - Compile the project"
-        echo "  task test         - Run all tests"
-        echo "  task build        - Build the release artifacts"
-        echo "  task run          - Run the application"
+        echo "  task clean          - Clean the project build files"
+        echo "  task compile        - Compile the project"
+        echo "  task test          - Run all tests"
+        echo "  task test:unit     - Run unit tests only"
+        echo "  task test:int      - Run integration tests only"
+        echo "  task lint          - Run code linting"
+        echo "  task format        - Format code"
+        echo "  task build         - Build the release artifacts"
+        echo "  task docker:build  - Build Docker image"
+        echo "  task docker:push   - Push Docker image"
+        echo "  task run           - Run the application"
+        echo "  task changelog     - Generate changelog"
         echo "  task github-release - Create a GitHub release"
-        echo "  task all          - Run complete build and release process"
+        echo "  task all           - Run complete build and release process"
         echo ""
         echo "Usage examples:"
         echo "  task              - Show this help message"
@@ -36,6 +45,8 @@ tasks:
         echo "  TIMEOUT=<ms>      - Connection timeout in ms (default: 5000)"
         echo "  FORMAT=<format>   - Output format (TXT/JSON/YAML) (default: TXT)"
         echo "  OUTPUT=<file>     - Output file path (optional)"
+        echo "  VERSION=<version> - Version number (semver format)"
+        echo "  DOCKER_REGISTRY   - Docker registry (default: ghcr.io)"
         echo ""
         echo "Setting version:"
         echo "  1. Command line: task github-release VERSION=1.0.0"
@@ -45,8 +56,21 @@ tasks:
         echo "Requirements:"
         echo "  - GitHub CLI (gh) installed and authenticated"
         echo "  - Repository must be initialized with git and have a remote"
+        echo "  - Docker (optional, for container tasks)"
+        echo "  - ktlint (optional, for linting tasks)"
         echo ""
         echo "For more information, visit: https://taskfile.dev"
+
+  validate-version:
+    desc: Validate version format
+    internal: true
+    silent: true
+    cmds:
+      - |
+        if ! echo "{{.VERSION}}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$' > /dev/null; then
+          echo "Error: Invalid version format. Must follow semver (e.g., 1.0.0, 1.0.0-alpha.1)"
+          exit 1
+        fi
 
   clean:
     desc: Clean the project build files
@@ -55,18 +79,56 @@ tasks:
 
   compile:
     desc: Compile the project
+    deps: [validate-version]
     cmds:
-      - ./gradlew :app:compileJava
+      - ./gradlew :app:compileKotlin
+
+  lint:
+    desc: Run code linting
+    cmds:
+      - ./gradlew :app:ktlintCheck
+
+  format:
+    desc: Format code
+    cmds:
+      - ./gradlew :app:ktlintFormat
+
+  test:unit:
+    desc: Run unit tests
+    cmds:
+      - ./gradlew :app:test --tests "org.example.*Test"
+
+  test:int:
+    desc: Run integration tests
+    cmds:
+      - ./gradlew :app:test --tests "org.example.*IT" || true
 
   test:
     desc: Run all tests
-    cmds:
-      - ./gradlew :app:test
+    deps: [test:unit]
 
   build:
     desc: Build the release artifacts
+    deps: [validate-version, clean, lint, test]
     cmds:
       - ./gradlew :app:build
+
+  docker:build:
+    desc: Build Docker image
+    deps: [build]
+    cmds:
+      - |
+        docker build -t {{.DOCKER_IMAGE}}:{{.VERSION}} \
+          --build-arg JAR_FILE=app/build/libs/{{.PROJECT_NAME}}-{{.VERSION}}-all.jar \
+          .
+      - docker tag {{.DOCKER_IMAGE}}:{{.VERSION}} {{.DOCKER_IMAGE}}:latest
+
+  docker:push:
+    desc: Push Docker image
+    deps: [docker:build]
+    cmds:
+      - docker push {{.DOCKER_IMAGE}}:{{.VERSION}}
+      - docker push {{.DOCKER_IMAGE}}:latest
 
   run:
     desc: Run the application
@@ -74,9 +136,26 @@ tasks:
       - |
         ./gradlew :app:run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --output-format {{.FORMAT}}{{if .OUTPUT}} --output-file {{.OUTPUT}}{{end}}"
 
+  changelog:
+    desc: Generate changelog
+    vars:
+      PREV_TAG:
+        sh: git describe --tags --abbrev=0 2>/dev/null || echo "HEAD"
+    cmds:
+      - |
+        echo "## [{{.VERSION}}] - $(date +%Y-%m-%d)" > CHANGELOG.md.tmp
+        echo "" >> CHANGELOG.md.tmp
+        git log {{.PREV_TAG}}..HEAD --pretty=format:"* %s" --no-merges >> CHANGELOG.md.tmp
+        echo "" >> CHANGELOG.md.tmp
+        echo "" >> CHANGELOG.md.tmp
+        if [ -f CHANGELOG.md ]; then
+          cat CHANGELOG.md >> CHANGELOG.md.tmp
+        fi
+        mv CHANGELOG.md.tmp CHANGELOG.md
+
   github-release:
     desc: Create GitHub release
-    deps: [build]
+    deps: [validate-version, build, changelog]
     cmds:
       - |
         if ! gh auth status >/dev/null 2>&1; then
@@ -108,19 +187,23 @@ tasks:
           fi
         done
       - |
+        # Create git tag
+        git tag -a "v{{.VERSION}}" -m "{{.RELEASE_NAME}}"
+        git push origin "v{{.VERSION}}"
+      - |
+        # Create GitHub release with changelog
+        CHANGELOG=$(awk '/^## \[{{.VERSION}}\]/{p=1;print;next} /^## /{p=0} p' CHANGELOG.md)
         gh release create "v{{.VERSION}}" \
-          --title "Release v{{.VERSION}}" \
-          --notes "Release v{{.VERSION}}" \
+          --title "{{.RELEASE_NAME}}" \
+          --notes "$CHANGELOG" \
           ./app/build/libs/{{.PROJECT_NAME}}-{{.VERSION}}*.jar
 
-  # Complete build and release process
   all:
     desc: Run the complete build and release process
-    deps: [clean, compile, test, build, github-release]
+    deps: [clean, compile, lint, test, build, docker:build, docker:push, github-release]
     cmds:
       - echo "Build and release process completed successfully!"
 
-  # Default task shows help
   default:
     desc: Show help message
     deps: [help] 

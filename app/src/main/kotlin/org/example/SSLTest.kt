@@ -1,16 +1,21 @@
 package org.example
 
 import kotlinx.coroutines.runBlocking
-import org.example.domain.model.OutputFormat
-import org.example.domain.model.SSLConnection
-import org.example.domain.service.OutputFormatter
-import org.example.config.SSLTestConfig
-import org.example.infrastructure.output.TextOutputFormatter
-import org.example.infrastructure.output.JsonOutputFormatter
-import org.example.infrastructure.output.YamlOutputFormatter
-import org.example.infrastructure.security.SSLConnectionTesterImpl
+import org.example.model.OutputFormat
+import org.example.model.SSLConnection
+import org.example.output.OutputFormatter
+import org.example.output.TextOutputFormatter
+import org.example.output.JsonOutputFormatter
+import org.example.output.YamlOutputFormatter
+import org.example.service.SSLConnectionTesterImpl
 import java.io.File
 import java.time.Duration
+
+data class SSLTestConfig(
+    val connectionTimeout: Int = 5000,
+    val format: OutputFormat = OutputFormat.TXT,
+    val outputFile: String? = null
+)
 
 fun main(args: Array<String>) = runBlocking {
     if (args.isEmpty()) {
@@ -18,7 +23,7 @@ fun main(args: Array<String>) = runBlocking {
         println("Options:")
         println("  --port <port>              Port number (default: 443)")
         println("  --connect-timeout <ms>     Connection timeout in milliseconds (default: 5000)")
-        println("  --output-format <format>   Output format (TXT) (default: TXT)")
+        println("  --output-format <format>   Output format (TXT, JSON, YAML) (default: TXT)")
         println("  --output-file <file>       Output file path (optional)")
         return@runBlocking
     }
