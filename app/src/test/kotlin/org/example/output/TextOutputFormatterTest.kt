@@ -1,15 +1,15 @@
 package org.example.output
 
+import io.mockk.every
+import io.mockk.mockk
 import org.example.model.SSLConnection
+import java.math.BigInteger
 import java.security.cert.X509Certificate
 import java.time.Duration
-import kotlin.test.Test
-import kotlin.test.assertTrue
-import io.mockk.mockk
-import io.mockk.every
 import java.util.Date
 import javax.security.auth.x500.X500Principal
-import java.math.BigInteger
+import kotlin.test.Test
+import kotlin.test.assertTrue
 
 class TextOutputFormatterTest {
     private val formatter = TextOutputFormatter()
@@ -28,15 +28,16 @@ class TextOutputFormatterTest {
         every { cert.serialNumber } returns BigInteger.valueOf(123456789)
         every { cert.encoded } returns "test".toByteArray()
 
-        val connection = SSLConnection(
-            host = "example.com",
-            port = 443,
-            protocol = "TLSv1.3",
-            cipherSuite = "TLS_AES_256_GCM_SHA384",
-            handshakeTime = Duration.ofMillis(100),
-            isSecure = true,
-            certificateChain = listOf(cert)
-        )
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(100),
+                isSecure = true,
+                certificateChain = listOf(cert),
+            )
 
         val output = stripAnsiCodes(formatter.format(connection))
 
@@ -57,15 +58,16 @@ class TextOutputFormatterTest {
 
     @Test
     fun `test format insecure connection`() {
-        val connection = SSLConnection(
-            host = "example.com",
-            port = 443,
-            protocol = "Unknown (Connection failed)",
-            cipherSuite = "Unknown",
-            handshakeTime = Duration.ofMillis(50),
-            isSecure = false,
-            certificateChain = emptyList()
-        )
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "Unknown (Connection failed)",
+                cipherSuite = "Unknown",
+                handshakeTime = Duration.ofMillis(50),
+                isSecure = false,
+                certificateChain = emptyList(),
+            )
 
         val output = stripAnsiCodes(formatter.format(connection))
 
@@ -80,4 +82,4 @@ class TextOutputFormatterTest {
         assertTrue(output.contains("Handshake Time: 50ms"))
         assertTrue(output.contains("Certificate Chain: Empty"))
     }
-} 
+}

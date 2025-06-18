@@ -1,10 +1,9 @@
 package org.example.config
 
+import org.example.createFormatter
 import org.example.model.OutputFormat
 import org.example.output.TextOutputFormatter
-import org.example.SSLTestConfig
 import org.example.parseConfig
-import org.example.createFormatter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -50,11 +49,17 @@ class SSLTestTest {
 
     @Test
     fun `test all options`() {
-        val config = parseConfig(arrayOf(
-            "--connect-timeout", "10000",
-            "--output-format", "JSON",
-            "--output-file", "test.json"
-        ))
+        val config =
+            parseConfig(
+                arrayOf(
+                    "--connect-timeout",
+                    "10000",
+                    "--output-format",
+                    "JSON",
+                    "--output-file",
+                    "test.json",
+                ),
+            )
 
         assertEquals(10000, config.connectionTimeout)
         assertEquals(OutputFormat.JSON, config.format)
@@ -66,4 +71,4 @@ class SSLTestTest {
         val formatter = createFormatter(OutputFormat.TXT)
         assertIs<TextOutputFormatter>(formatter)
     }
-} 
+}

@@ -4,5 +4,5 @@ enum class OutputFormat {
     TXT,
     JSON,
     YAML,
-    UNKNOWN
-} 
+    UNKNOWN,
+}

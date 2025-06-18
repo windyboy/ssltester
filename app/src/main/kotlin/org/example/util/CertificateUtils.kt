@@ -23,4 +23,4 @@ object CertificateUtils {
     fun getCertificateSerialNumber(certificate: X509Certificate): String {
         return certificate.serialNumber.toString(16).uppercase()
     }
-} 
+}

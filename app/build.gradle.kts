@@ -12,6 +12,8 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
     // shadow - update to new plugin ID and latest stable version
     id("com.gradleup.shadow") version "8.3.6"
+    // Add ktlint plugin for code formatting
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
 }
 
 repositories {
@@ -20,33 +22,37 @@ repositories {
 }
 
 // Version catalog for dependencies
-val versions = mapOf(
-    "kotlin" to "1.9.22",
-    "slf4j" to "2.0.11",
-    "logback" to "1.5.13",
-    "jackson" to "2.16.1",
-    "kotlin-logging" to "3.0.5"
-)
+val versions =
+    mapOf(
+        "kotlin" to "1.9.22",
+        "slf4j" to "2.0.11",
+        "logback" to "1.5.13",
+        "jackson" to "2.16.1",
+        "kotlin-logging" to "3.0.5",
+    )
 
 dependencies {
     // Picocli for command line argument parsing
     implementation("info.picocli:picocli:4.7.5")
     annotationProcessor("info.picocli:picocli-codegen:4.7.5")
-    
+
     // JSON and YAML support
     implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${versions["jackson"]}")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${versions["jackson"]}")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${versions["jackson"]}")
-    
+
     // Logging
     implementation("org.slf4j:slf4j-api:${versions["slf4j"]}")
     implementation("io.github.microutils:kotlin-logging:${versions["kotlin-logging"]}")
     implementation("ch.qos.logback:logback-classic:${versions["logback"]}")
 
     // Kotlin dependencies
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:${versions["kotlin"]}"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
 
     // Testing
     testImplementation("org.jetbrains.kotlin:kotlin-test")
@@ -55,9 +61,6 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.9")
     testImplementation("net.bytebuddy:byte-buddy:1.14.12")
     testImplementation("net.bytebuddy:byte-buddy-agent:1.14.12")
-
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
 }
 
 // Java configuration
@@ -71,7 +74,17 @@ java {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
         jvmTarget = "21"
-        freeCompilerArgs = listOf("-Xjsr305=strict")
+        apiVersion = "1.9"
+        languageVersion = "1.9"
+        freeCompilerArgs =
+            listOf(
+                "-Xjsr305=strict",
+                "-Xskip-prerelease-check",
+                "-Xjvm-default=all",
+                "-Xno-param-assertions",
+                "-Xno-call-assertions",
+                "-Xno-receiver-assertions",
+            )
     }
 }
 
@@ -94,12 +107,24 @@ tasks.named<JavaExec>("run") {
 // Testing configuration
 tasks.test {
     useJUnitPlatform()
-    jvmArgs = listOf("-javaagent:${classpath.find { it.name.contains("byte-buddy-agent") }?.absolutePath}")
+    jvmArgs(
+        listOf(
+            "-javaagent:${classpath.find { it.name.contains("byte-buddy-agent") }?.absolutePath}",
+            "-XX:+IgnoreUnrecognizedVMOptions",
+            "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+            "--add-opens=java.base/java.io=ALL-UNNAMED",
+            "-Xlog:gc*:file=gc.log",
+            "-XX:+PrintCommandLineFlags",
+            "-Dsun.io.useCanonCaches=false",
+            "-XX:+IgnoreUnrecognizedVMOptions",
+            "-Dsun.misc.Unsafe.objectFieldOffset=ignore",
+        ),
+    )
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
     }
-    
+
     // Add test execution time listener
     systemProperty("junit.platform.listener.default.class", "org.example.TestExecutionTimeListener")
 }
@@ -109,4 +134,43 @@ tasks.shadowJar {
     archiveClassifier.set("")
     archiveVersion.set("0.0.1")
     mergeServiceFiles()
+}
+
+// Configure Kotlin daemon
+kotlin {
+    jvmToolchain(21)
+    sourceSets.all {
+        languageSettings {
+            languageVersion = "1.9"
+            apiVersion = "1.9"
+        }
+    }
+}
+
+// Configure all Java processes
+allprojects {
+    tasks.withType<JavaExec> {
+        jvmArgs(
+            listOf(
+                "-XX:+IgnoreUnrecognizedVMOptions",
+                "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+                "--add-opens=java.base/java.io=ALL-UNNAMED",
+                "-Dsun.io.useCanonCaches=false",
+                "-XX:+IgnoreUnrecognizedVMOptions",
+                "-Dsun.misc.Unsafe.objectFieldOffset=ignore",
+            ),
+        )
+    }
+}
+
+// Configure Gradle daemon
+gradle.projectsEvaluated {
+    tasks.withType<JavaCompile> {
+        options.compilerArgs.addAll(
+            listOf(
+                "--enable-preview",
+                "-Xlint:-options",
+            ),
+        )
+    }
 }

@@ -10,5 +10,5 @@ data class SSLConnection(
     val cipherSuite: String,
     val handshakeTime: Duration,
     val isSecure: Boolean,
-    val certificateChain: List<X509Certificate> = emptyList()
-) 
+    val certificateChain: List<X509Certificate> = emptyList(),
+)

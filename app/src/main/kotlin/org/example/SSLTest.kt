@@ -3,9 +3,9 @@ package org.example
 import kotlinx.coroutines.runBlocking
 import org.example.model.OutputFormat
 import org.example.model.SSLConnection
+import org.example.output.JsonOutputFormatter
 import org.example.output.OutputFormatter
 import org.example.output.TextOutputFormatter
-import org.example.output.JsonOutputFormatter
 import org.example.output.YamlOutputFormatter
 import org.example.service.SSLConnectionTesterImpl
 import java.io.File
@@ -14,48 +14,50 @@ import java.time.Duration
 data class SSLTestConfig(
     val connectionTimeout: Int = 5000,
     val format: OutputFormat = OutputFormat.TXT,
-    val outputFile: String? = null
+    val outputFile: String? = null,
 )
 
-fun main(args: Array<String>) = runBlocking {
-    if (args.isEmpty()) {
-        println("Usage: ssl-test <host> [options]")
-        println("Options:")
-        println("  --port <port>              Port number (default: 443)")
-        println("  --connect-timeout <ms>     Connection timeout in milliseconds (default: 5000)")
-        println("  --output-format <format>   Output format (TXT, JSON, YAML) (default: TXT)")
-        println("  --output-file <file>       Output file path (optional)")
-        return@runBlocking
-    }
+fun main(args: Array<String>) =
+    runBlocking {
+        if (args.isEmpty()) {
+            println("Usage: ssl-test <host> [options]")
+            println("Options:")
+            println("  --port <port>              Port number (default: 443)")
+            println("  --connect-timeout <ms>     Connection timeout in milliseconds (default: 5000)")
+            println("  --output-format <format>   Output format (TXT, JSON, YAML) (default: TXT)")
+            println("  --output-file <file>       Output file path (optional)")
+            return@runBlocking
+        }
 
-    try {
-        val host = args[0]
-        val port = args.getOrNull(1)?.toIntOrNull() ?: 443
-        val config = parseConfig(args.drop(2).toTypedArray())
-        val tester = SSLConnectionTesterImpl()
-        val connection = tester.testConnection(host, port, config)
-        val formatter = createFormatter(config.format)
-        val output = formatter.format(connection)
-        if (config.outputFile != null) {
-            File(config.outputFile).writeText(output)
-        } else {
+        try {
+            val host = args[0]
+            val port = args.getOrNull(1)?.toIntOrNull() ?: 443
+            val config = parseConfig(args.drop(2).toTypedArray())
+            val tester = SSLConnectionTesterImpl()
+            val connection = tester.testConnection(host, port, config)
+            val formatter = createFormatter(config.format)
+            val output = formatter.format(connection)
+            if (config.outputFile != null) {
+                File(config.outputFile).writeText(output)
+            } else {
+                println(output)
+            }
+        } catch (e: Exception) {
+            val failedConnection =
+                SSLConnection(
+                    host = args[0],
+                    port = args.getOrNull(1)?.toIntOrNull() ?: 443,
+                    protocol = "",
+                    cipherSuite = "",
+                    handshakeTime = Duration.ofMillis(0),
+                    isSecure = false,
+                    certificateChain = emptyList(),
+                )
+            val formatter = createFormatter(OutputFormat.TXT)
+            val output = formatter.format(failedConnection)
             println(output)
         }
-    } catch (e: Exception) {
-        val failedConnection = SSLConnection(
-            host = args[0],
-            port = args.getOrNull(1)?.toIntOrNull() ?: 443,
-            protocol = "",
-            cipherSuite = "",
-            handshakeTime = Duration.ofMillis(0),
-            isSecure = false,
-            certificateChain = emptyList()
-        )
-        val formatter = createFormatter(OutputFormat.TXT)
-        val output = formatter.format(failedConnection)
-        println(output)
     }
-}
 
 fun parseConfig(args: Array<String>): SSLTestConfig {
     var connectionTimeout = 5000
@@ -73,7 +75,7 @@ fun parseConfig(args: Array<String>): SSLTestConfig {
     return SSLTestConfig(
         connectionTimeout = connectionTimeout,
         format = format,
-        outputFile = outputFile
+        outputFile = outputFile,
     )
 }
 

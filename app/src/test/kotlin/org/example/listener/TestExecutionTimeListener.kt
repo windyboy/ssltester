@@ -5,7 +5,6 @@ import org.junit.platform.launcher.TestExecutionListener
 import org.junit.platform.launcher.TestIdentifier
 import org.junit.platform.launcher.TestPlan
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.system.measureTimeMillis
 
 class TestExecutionTimeListener : TestExecutionListener {
     private val testTimes = ConcurrentHashMap<String, Long>()
@@ -29,7 +28,10 @@ class TestExecutionTimeListener : TestExecutionListener {
         }
     }
 
-    override fun executionFinished(testIdentifier: TestIdentifier, result: TestExecutionResult) {
+    override fun executionFinished(
+        testIdentifier: TestIdentifier,
+        result: TestExecutionResult,
+    ) {
         if (testIdentifier.isTest) {
             val startTime = testStartTimes.remove(testIdentifier.uniqueId)
             if (startTime != null) {
@@ -38,4 +40,4 @@ class TestExecutionTimeListener : TestExecutionListener {
             }
         }
     }
-} 
+}
