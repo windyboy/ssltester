@@ -16,6 +16,7 @@ out/
 # Java/Kotlin
 *.class
 *.log
+gc.log*
 *.jar
 *.war
 *.nar
@@ -25,6 +26,12 @@ out/
 *.rar
 hs_err_pid*
 replay_pid*
+
+# Kotlin compiler
+.kotlin/
+*.kotlin_module
+*.kotlin_metadata
+*.kotlin_builtins
 
 # 本地配置文件
 local.properties
