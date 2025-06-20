@@ -100,7 +100,7 @@ class SSLTestCommand : Callable<Int>, KoinComponent {
                                 certificateChain = emptyList(),
                             )
 
-                        val formatter: OutputFormatter by inject(named("text"))
+                        val formatter: OutputFormatter by inject(named("txt"))
                         System.err.println(formatter.format(failedConnection))
                         return@runBlocking 1
                     }

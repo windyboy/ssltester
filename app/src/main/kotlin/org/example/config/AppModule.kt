@@ -16,7 +16,7 @@ val appModule =
         single<SSLConnectionTester> { SSLConnectionTesterImpl() }
 
         // Output formatters
-        single<OutputFormatter>(qualifier = named("text")) { TextOutputFormatter() }
+        single<OutputFormatter>(qualifier = named("txt")) { TextOutputFormatter() }
         single<OutputFormatter>(qualifier = named("json")) { JsonOutputFormatter() }
         single<OutputFormatter>(qualifier = named("yaml")) { YamlOutputFormatter() }
 

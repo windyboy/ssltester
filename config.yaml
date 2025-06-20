@@ -1,6 +1,0 @@
-# SSL Test Configuration
-connectionTimeout: 5000
-format: TXT
-
-# Optional output configuration
-# outputFile: /path/to/output.txt 
