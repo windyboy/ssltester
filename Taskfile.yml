@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  VERSION: '{{.VERSION | default "0.1.0"}}'
+  VERSION: '{{.VERSION | default "0.0.2"}}'
   RELEASE_NAME: 'Release v{{.VERSION}}'
   PROJECT_NAME: 'ssltest'
   HOST: '{{.HOST | default "example.com"}}'
@@ -51,7 +51,7 @@ tasks:
         echo "Setting version:"
         echo "  1. Command line: task github-release VERSION=1.0.0"
         echo "  2. Environment: export VERSION=1.0.0"
-        echo "  3. Default: 0.1.0"
+        echo "  3. Default: 0.0.2"
         echo ""
         echo "Requirements:"
         echo "  - GitHub CLI (gh) installed and authenticated"
