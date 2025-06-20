@@ -6,8 +6,11 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-// 项目版本号 - 统一管理
-val projectVersion = "0.0.2"
+// Read version from Version.kt file
+val versionFile = file("src/main/kotlin/org/example/Version.kt")
+val versionRegex = Regex("""const val VERSION = "([^"]+)"""")
+val versionMatch = versionFile.readText().let { versionRegex.find(it) }
+val projectVersion = versionMatch?.groupValues?.get(1) ?: "0.0.2"
 
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
@@ -17,8 +20,6 @@ plugins {
     id("com.gradleup.shadow") version "8.3.6"
     // Add ktlint plugin for code formatting
     id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
-    // Add kapt for annotation processing
-    id("org.jetbrains.kotlin.kapt") version "1.9.22"
 }
 
 repositories {
@@ -34,7 +35,6 @@ val versions =
         "logback" to "1.5.13",
         "jackson" to "2.16.1",
         "kotlin-logging" to "3.0.5",
-        "koin" to "3.5.3",
     )
 
 dependencies {
@@ -134,7 +134,7 @@ tasks.test {
     }
 
     // Add test execution time listener
-    systemProperty("junit.platform.listener.default.class", "org.example.TestExecutionTimeListener")
+    systemProperty("junit.platform.listener.default.class", "org.example.listener.TestExecutionTimeListener")
 }
 
 tasks.shadowJar {

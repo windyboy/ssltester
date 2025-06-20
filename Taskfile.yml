@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  VERSION: '{{.VERSION | default "0.0.2"}}'
+  VERSION: '{{.VERSION | default (exec "grep" "const val VERSION" "app/src/main/kotlin/org/example/Version.kt" | sed "s/.*\"\\(.*\\)\".*/\\1/")}}'
   RELEASE_NAME: 'Release v{{.VERSION}}'
   PROJECT_NAME: 'ssltest'
   HOST: '{{.HOST | default "example.com"}}'
