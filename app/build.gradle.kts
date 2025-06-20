@@ -6,6 +6,9 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
+// 项目版本号 - 统一管理
+val projectVersion = "0.0.2"
+
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
@@ -137,7 +140,7 @@ tasks.test {
 tasks.shadowJar {
     archiveBaseName.set("ssl-test")
     archiveClassifier.set("")
-    archiveVersion.set("0.0.1")
+    archiveVersion.set(projectVersion)
     mergeServiceFiles()
 }
 

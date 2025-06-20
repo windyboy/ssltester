@@ -7,10 +7,13 @@ package org.example.model
 sealed class OutputFormat(val value: String) {
     /** 文本格式 */
     data object TXT : OutputFormat("TXT")
+
     /** JSON 格式 */
     data object JSON : OutputFormat("JSON")
+
     /** YAML 格式 */
     data object YAML : OutputFormat("YAML")
+
     /** 未知格式 */
     data object UNKNOWN : OutputFormat("UNKNOWN")
 
