@@ -8,8 +8,6 @@
 - SSL/TLS握手测试
 - 证书链验证
 - 主机名验证
-- 客户端证书支持
-- 详细的证书信息展示
 - 多种输出格式支持(文本格式, JSON格式, YAML格式)
 
 ## 系统要求
@@ -17,114 +15,55 @@
 - Java 11或更高版本
 - 支持的操作系统: Windows, macOS, Linux
 
-## 安装
-
-### 使用预编译的二进制文件
-
-从[发布页面](https://github.com/example/ssltest/releases)下载最新版本：
-
-```bash
-# 解压下载的文件
-unzip ssltest-1.0.0.zip
-
-# 赋予执行权限
-chmod +x ssltest/bin/ssltest
-
-# 运行程序
-./ssltest/bin/ssltest https://example.com
-```
-
-### 从源码构建
+## 安装与构建
 
 ```bash
 # 克隆项目
-git clone https://github.com/example/ssltest.git
-cd ssltest
+$ git clone <your-repo-url>
+$ cd ssl
 
-# 使用Maven构建
-./mvnw clean package
+# 使用 Gradle 构建
+$ ./gradlew clean build
+```
 
-# 运行构建后的程序
-java -jar target/ssltest-1.0.0.jar https://example.com
+## 目录结构
+
+```
+app/src/main/kotlin/org/example/
+  SSLTest.kt                # 主入口
+  SSLTestCommand.kt         # 命令行参数与调度
+  SSLConnectionTesterImpl.kt# SSL连接测试核心逻辑
+  model/                    # 数据模型
+  exception/                # 异常定义
+  formatter/                # 输出格式化器（TXT/JSON/YAML）
+  cli/                      # 命令行相关
+  listener/                 # 测试监听器
 ```
 
 ## 基础用法
 
 ```bash
 # 基本SSL测试
-ssltest https://example.com
+./gradlew run --args="github.com --port 443 --format TXT"
 
-# 指定超时时间（毫秒）
-ssltest https://example.com -t 5000 -r 5000
-
-# 启用重定向跟踪
-ssltest https://example.com -f
-```
-
-## 高级用法
-
-### 自定义信任库
-
-```bash
-# 使用自定义信任库
-ssltest https://example.com -k mycertificates.jks -p 
-# 会提示输入信任库密码
-```
-
-### 客户端证书认证
-
-```bash
-# 使用客户端证书和私钥进行双向TLS认证
-ssltest https://example.com --client-certificate client.pem --client-key client_key.pem
-
-# 指定客户端证书格式
-ssltest https://example.com --client-certificate client.der --client-key client_key.der --client-certificate-format DER
-
-# 带密码的私钥
-ssltest https://example.com --client-certificate client.pem --client-key client_key.pem --client-key-password
-# 会提示输入私钥密码
-```
-
-### 输出控制
-
-```bash
 # 指定输出文件
-ssltest https://example.com -o results.txt
-
-# JSON 格式输出
-ssltest https://example.com --format JSON
-
-# YAML 格式输出
-ssltest https://example.com --format YAML
-
-# 详细输出模式
-ssltest https://example.com -v
+./gradlew run --args="github.com --port 443 --format JSON --output result.json"
 ```
 
-### 配置文件
+## 输出格式
+- TXT（彩色文本，适合终端）
+- JSON
+- YAML
 
-可以将常用配置保存在YAML或JSON配置文件中：
+## 开发说明
 
-```bash
-# 使用配置文件
-ssltest https://example.com -c myconfig.yml
-```
+- **无依赖注入框架**，所有依赖直接 new，结构极简。
+- 所有格式化器均在 `org.example.formatter` 包下，便于扩展。
+- 主要业务逻辑集中在 `SSLTestCommand` 和 `SSLConnectionTesterImpl`。
+- 代码均带有标准 Kotlin 文档注释，便于 IDE/工具提示。
 
-配置文件示例 `myconfig.yml`:
-```yaml
-connectionTimeout: 10000
-readTimeout: 10000
-followRedirects: true
-keystoreFile: "mycertificates.jks"
-keystorePassword: "mysecret"
-clientCertificateFile: "client.pem"
-clientKeyFile: "client_key.pem"
-clientKeyPassword: "keypass"
-clientCertificateFormat: "PEM"
-outputFile: "results.json"
-format: "JSON"
-verbose: true
-```
+## 贡献
+欢迎提交 issue 或 PR！
 
 ## 命令行参数
 

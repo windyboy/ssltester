@@ -1,9 +1,16 @@
 package org.example.exception
 
+/**
+ * SSL 测试相关异常。
+ * 包含握手错误、连接错误、配置错误等。
+ */
 sealed class SSLTestException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause) {
+    /**
+     * SSL 握手错误。
+     */
     data class HandshakeError(
         val host: String,
         val port: Int,
@@ -14,6 +21,9 @@ sealed class SSLTestException(
             cause,
         )
 
+    /**
+     * 连接错误。
+     */
     data class ConnectionError(
         val host: String,
         val port: Int,
@@ -24,6 +34,9 @@ sealed class SSLTestException(
             cause,
         )
 
+    /**
+     * 配置错误。
+     */
     data class ConfigurationError(
         override val message: String,
         override val cause: Throwable? = null,
@@ -33,6 +46,9 @@ sealed class SSLTestException(
         )
 
     companion object {
+        /**
+         * 从异常生成对应的 SSLTestException。
+         */
         fun fromException(
             e: Throwable,
             host: String? = null,

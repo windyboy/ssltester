@@ -36,12 +36,8 @@ val versions =
 
 dependencies {
     // Dependency Injection
-    implementation("io.insert-koin:koin-core:${versions["koin"]}")
-    implementation("io.insert-koin:koin-logger-slf4j:${versions["koin"]}")
-
     // Picocli for command line argument parsing
     implementation("info.picocli:picocli:4.7.5")
-    kapt("info.picocli:picocli-codegen:4.7.5")
 
     // JSON and YAML support
     implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")

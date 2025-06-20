@@ -2,14 +2,13 @@ package org.example.cli
 
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
+import org.example.SSLConnectionTesterImpl
+import org.example.formatter.JsonOutputFormatter
+import org.example.formatter.TextOutputFormatter
+import org.example.formatter.YamlOutputFormatter
 import org.example.model.OutputFormat
 import org.example.model.SSLConnection
 import org.example.model.SSLTestConfig
-import org.example.output.OutputFormatter
-import org.example.service.SSLConnectionTester
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import org.koin.core.qualifier.named
 import picocli.CommandLine.Command
 import picocli.CommandLine.ITypeConverter
 import picocli.CommandLine.Option
@@ -24,46 +23,69 @@ class OutputFormatConverter : ITypeConverter<OutputFormat> {
     override fun convert(value: String): OutputFormat = OutputFormat.valueOf(value)
 }
 
+/**
+ * SSL 测试命令行实现，负责参数解析和业务调度。
+ */
 @Command(
     name = "ssl-test",
     description = ["Test SSL/TLS connections to remote hosts"],
     mixinStandardHelpOptions = true,
     version = ["0.0.1"],
 )
-class SSLTestCommand : Callable<Int>, KoinComponent {
-    private val sslTester: SSLConnectionTester by inject()
+class SSLTestCommand : Callable<Int> {
+    /** SSL 连接测试器实现 */
+    private val sslTester = SSLConnectionTesterImpl()
 
+    /**
+     * 目标主机
+     */
     @Parameters(
         index = "0",
         description = ["The host to test the SSL/TLS connection with"],
     )
     lateinit var host: String
 
+    /**
+     * 端口号，默认 443
+     */
     @Option(
         names = ["-p", "--port"],
-        description = ["Port number (default: \${DEFAULT-VALUE})"],
+        description = ["Port number (default: 443)"],
     )
     var port: Int = 443
 
+    /**
+     * 连接超时时间（毫秒），默认 5000
+     */
     @Option(
         names = ["--connect-timeout"],
-        description = ["Connection timeout in milliseconds (default: \${DEFAULT-VALUE})"],
+        description = ["Connection timeout in milliseconds (default: 5000)"],
     )
     var connectionTimeout: Int = 5000
 
+    /**
+     * 输出格式，支持 TXT/JSON/YAML
+     */
     @Option(
         names = ["-f", "--format"],
-        description = ["Output format (txt, json, yaml) (default: \${DEFAULT-VALUE})"],
+        description = ["Output format (txt, json, yaml) (default: TXT)"],
         converter = [OutputFormatConverter::class],
     )
     var format: OutputFormat = OutputFormat.TXT
 
+    /**
+     * 输出文件路径（可选）
+     */
     @Option(
         names = ["-o", "--output"],
         description = ["Output file path"],
     )
     var outputFile: String? = null
 
+    /**
+     * 命令执行主逻辑。
+     * @return 退出码，0 表示成功，非 0 表示失败
+     */
     override fun call(): Int =
         runBlocking {
             try {
@@ -78,8 +100,13 @@ class SSLTestCommand : Callable<Int>, KoinComponent {
 
                 sslTester.testConnection(host, port, config)
                     .onSuccess { connection ->
-                        val formatter: OutputFormatter by inject(named(format.value.lowercase()))
-                        val output = formatter.format(connection)
+                        val output =
+                            when (format) {
+                                OutputFormat.TXT -> TextOutputFormatter().format(connection)
+                                OutputFormat.JSON -> JsonOutputFormatter().format(connection)
+                                OutputFormat.YAML -> YamlOutputFormatter().format(connection)
+                                OutputFormat.UNKNOWN -> TextOutputFormatter().format(connection)
+                            }
 
                         if (outputFile != null) {
                             File(outputFile!!).writeText(output)
@@ -99,8 +126,7 @@ class SSLTestCommand : Callable<Int>, KoinComponent {
                                 isSecure = false,
                                 certificateChain = emptyList(),
                             )
-
-                        val formatter: OutputFormatter by inject(named("txt"))
+                        val formatter = TextOutputFormatter()
                         System.err.println(formatter.format(failedConnection))
                         return@runBlocking 1
                     }

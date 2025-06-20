@@ -1,9 +1,9 @@
 package org.example.core
 
 import kotlinx.coroutines.runBlocking
+import org.example.SSLConnectionTesterImpl
 import org.example.exception.SSLTestException
 import org.example.model.SSLTestConfig
-import org.example.service.SSLConnectionTesterImpl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

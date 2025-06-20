@@ -1,4 +1,4 @@
-package org.example.service
+package org.example
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,8 +21,19 @@ import javax.net.ssl.SSLProtocolException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
 
-class SSLConnectionTesterImpl : SSLConnectionTester {
-    override suspend fun testConnection(
+/**
+ * SSL 连接测试核心实现。
+ * 负责建立 SSL/TLS 连接并收集连接信息。
+ */
+class SSLConnectionTesterImpl {
+    /**
+     * 测试指定主机和端口的 SSL/TLS 连接。
+     * @param host 目标主机
+     * @param port 目标端口
+     * @param config 测试配置
+     * @return 测试结果，成功返回 SSLConnection，失败返回异常
+     */
+    suspend fun testConnection(
         host: String,
         port: Int,
         config: SSLTestConfig,

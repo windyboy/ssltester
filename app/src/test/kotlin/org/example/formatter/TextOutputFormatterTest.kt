@@ -1,4 +1,4 @@
-package org.example.output
+package org.example.formatter
 
 import io.mockk.every
 import io.mockk.mockk

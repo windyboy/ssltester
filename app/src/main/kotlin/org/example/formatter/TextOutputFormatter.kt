@@ -1,4 +1,4 @@
-package org.example.output
+package org.example.formatter
 
 import org.example.model.SSLConnection
 import java.security.MessageDigest
@@ -7,7 +7,11 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class TextOutputFormatter : OutputFormatter {
+/**
+ * 文本格式输出格式化器。
+ * 以彩色文本方式输出 SSL 连接结果。
+ */
+class TextOutputFormatter {
     private val ansiReset = "\u001B[0m"
     private val ansiGreen = "\u001B[32m"
     private val ansiRed = "\u001B[31m"
@@ -23,7 +27,12 @@ class TextOutputFormatter : OutputFormatter {
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     private val maxLineLength = 80
 
-    override fun format(connection: SSLConnection): String {
+    /**
+     * 格式化 SSL 连接结果为文本。
+     * @param connection SSL 连接结果
+     * @return 格式化后的文本
+     */
+    fun format(connection: SSLConnection): String {
         return buildString {
             try {
                 // Header
@@ -117,5 +126,8 @@ class TextOutputFormatter : OutputFormatter {
         return text.chunked(maxLength)
     }
 
-    override fun getFileExtension(): String = "txt"
+    /**
+     * 获取文件扩展名。
+     */
+    fun getFileExtension(): String = "txt"
 }

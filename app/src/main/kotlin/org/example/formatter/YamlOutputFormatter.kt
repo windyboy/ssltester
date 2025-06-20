@@ -1,4 +1,4 @@
-package org.example.output
+package org.example.formatter
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
@@ -6,13 +6,21 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.example.model.SSLConnection
 import java.time.format.DateTimeFormatter
 
-class YamlOutputFormatter : OutputFormatter {
+/**
+ * YAML 格式输出格式化器。
+ */
+class YamlOutputFormatter {
     private val objectMapper =
         ObjectMapper(YAMLFactory()).apply {
             registerModule(JavaTimeModule())
         }
 
-    override fun format(connection: SSLConnection): String {
+    /**
+     * 格式化 SSL 连接结果为 YAML 字符串。
+     * @param connection SSL 连接结果
+     * @return YAML 字符串
+     */
+    fun format(connection: SSLConnection): String {
         val result =
             mapOf(
                 "host" to connection.host,
@@ -39,5 +47,8 @@ class YamlOutputFormatter : OutputFormatter {
         return DateTimeFormatter.ISO_INSTANT.format(date)
     }
 
-    override fun getFileExtension(): String = "yaml"
+    /**
+     * 获取文件扩展名。
+     */
+    fun getFileExtension(): String = "yaml"
 }

@@ -2,26 +2,22 @@ package org.example
 
 import mu.KotlinLogging
 import org.example.cli.SSLTestCommand
-import org.example.config.appModule
-import org.koin.core.context.startKoin
 import picocli.CommandLine
 import kotlin.system.exitProcess
 
+/**
+ * 项目主入口。负责初始化命令行工具并启动执行。
+ */
 private val logger = KotlinLogging.logger {}
 
+/**
+ * 程序入口函数。
+ * @param args 命令行参数
+ */
 fun main(args: Array<String>) {
     try {
-        // Initialize Koin
-        val koin =
-            startKoin {
-                printLogger()
-                modules(appModule)
-            }.koin
-
-        // Get command instance from Koin
-        val command = koin.get<SSLTestCommand>()
-
-        // Execute command
+        // 直接 new 命令实例
+        val command = SSLTestCommand()
         val exitCode = CommandLine(command).execute(*args)
         exitProcess(exitCode)
     } catch (e: Exception) {

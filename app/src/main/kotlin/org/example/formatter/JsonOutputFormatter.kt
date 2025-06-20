@@ -1,4 +1,4 @@
-package org.example.output
+package org.example.formatter
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
@@ -6,7 +6,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.example.model.SSLConnection
 import java.time.format.DateTimeFormatter
 
-class JsonOutputFormatter : OutputFormatter {
+/**
+ * JSON 格式输出格式化器。
+ */
+class JsonOutputFormatter {
     private val objectMapper =
         ObjectMapper().apply {
             registerModule(JavaTimeModule())
@@ -14,7 +17,12 @@ class JsonOutputFormatter : OutputFormatter {
             disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         }
 
-    override fun format(connection: SSLConnection): String {
+    /**
+     * 格式化 SSL 连接结果为 JSON 字符串。
+     * @param connection SSL 连接结果
+     * @return JSON 字符串
+     */
+    fun format(connection: SSLConnection): String {
         val result =
             mapOf(
                 "host" to connection.host,
@@ -41,5 +49,8 @@ class JsonOutputFormatter : OutputFormatter {
         return DateTimeFormatter.ISO_INSTANT.format(date)
     }
 
-    override fun getFileExtension(): String = "json"
+    /**
+     * 获取文件扩展名。
+     */
+    fun getFileExtension(): String = "json"
 }
