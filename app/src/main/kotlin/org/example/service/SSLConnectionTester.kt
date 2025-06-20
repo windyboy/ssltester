@@ -1,8 +1,7 @@
 package org.example.service
 
-import org.example.SSLTestConfig
-import org.example.exception.SSLTestException
 import org.example.model.SSLConnection
+import org.example.model.SSLTestConfig
 
 sealed interface SSLConnectionTester {
     suspend fun testConnection(

@@ -9,11 +9,13 @@
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
-    id("org.jetbrains.kotlin.jvm") version "2.0.0-Beta4"
+    id("org.jetbrains.kotlin.jvm") version "1.9.22"
     // shadow - update to new plugin ID and latest stable version
     id("com.gradleup.shadow") version "8.3.6"
     // Add ktlint plugin for code formatting
     id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
+    // Add kapt for annotation processing
+    id("org.jetbrains.kotlin.kapt") version "1.9.22"
 }
 
 repositories {
@@ -24,17 +26,22 @@ repositories {
 // Version catalog for dependencies
 val versions =
     mapOf(
-        "kotlin" to "2.0.0-Beta4",
+        "kotlin" to "1.9.22",
         "slf4j" to "2.0.11",
         "logback" to "1.5.13",
         "jackson" to "2.16.1",
         "kotlin-logging" to "3.0.5",
+        "koin" to "3.5.3",
     )
 
 dependencies {
+    // Dependency Injection
+    implementation("io.insert-koin:koin-core:${versions["koin"]}")
+    implementation("io.insert-koin:koin-logger-slf4j:${versions["koin"]}")
+
     // Picocli for command line argument parsing
     implementation("info.picocli:picocli:4.7.5")
-    annotationProcessor("info.picocli:picocli-codegen:4.7.5")
+    kapt("info.picocli:picocli-codegen:4.7.5")
 
     // JSON and YAML support
     implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")
@@ -61,6 +68,8 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.9")
     testImplementation("net.bytebuddy:byte-buddy:1.14.12")
     testImplementation("net.bytebuddy:byte-buddy-agent:1.14.12")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
 }
 
 // Java configuration
@@ -74,16 +83,12 @@ java {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions {
         jvmTarget = "21"
-        apiVersion = "2.0"
-        languageVersion = "2.0"
+        apiVersion = "1.9"
+        languageVersion = "1.9"
         freeCompilerArgs =
             listOf(
                 "-Xjsr305=strict",
-                "-Xskip-prerelease-check",
                 "-Xjvm-default=all",
-                "-Xno-param-assertions",
-                "-Xno-call-assertions",
-                "-Xno-receiver-assertions"
             )
     }
 }
@@ -96,6 +101,7 @@ tasks.withType<JavaCompile> {
 // Application configuration
 application {
     mainClass.set("org.example.SSLTestKt")
+    applicationName = "ssl-test"
 }
 
 // Run task configuration
@@ -113,6 +119,9 @@ tasks.test {
             "-XX:+IgnoreUnrecognizedVMOptions",
             "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
             "--add-opens=java.base/java.io=ALL-UNNAMED",
+            "--add-opens=java.base/java.lang=ALL-UNNAMED",
+            "--add-opens=java.base/java.util=ALL-UNNAMED",
+            "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             "-Xlog:gc*:file=gc.log",
             "-XX:+PrintCommandLineFlags",
             "-Dsun.io.useCanonCaches=false",
@@ -141,8 +150,8 @@ kotlin {
     jvmToolchain(21)
     sourceSets.all {
         languageSettings {
-            languageVersion = "2.0"
-            apiVersion = "2.0"
+            languageVersion = "1.9"
+            apiVersion = "1.9"
         }
     }
 }

@@ -11,7 +11,7 @@ import kotlin.test.assertIs
 class SSLTestTest {
     @Test
     fun `test default config`() {
-        val config = parseConfig(arrayOf())
+        val config = parseConfig(arrayOf("example.com"))
         val formatter = createFormatter(config.format)
 
         assertEquals(5000, config.connectionTimeout)
@@ -22,7 +22,7 @@ class SSLTestTest {
 
     @Test
     fun `test custom timeout`() {
-        val config = parseConfig(arrayOf("--connect-timeout", "10000"))
+        val config = parseConfig(arrayOf("example.com", "--connect-timeout", "10000"))
 
         assertEquals(10000, config.connectionTimeout)
         assertEquals(OutputFormat.TXT, config.format)
@@ -31,7 +31,7 @@ class SSLTestTest {
 
     @Test
     fun `test custom output format`() {
-        val config = parseConfig(arrayOf("--output-format", "JSON"))
+        val config = parseConfig(arrayOf("example.com", "--format", "JSON"))
 
         assertEquals(5000, config.connectionTimeout)
         assertEquals(OutputFormat.JSON, config.format)
@@ -40,7 +40,7 @@ class SSLTestTest {
 
     @Test
     fun `test output file`() {
-        val config = parseConfig(arrayOf("--output-file", "test.txt"))
+        val config = parseConfig(arrayOf("example.com", "--output", "test.txt"))
 
         assertEquals(5000, config.connectionTimeout)
         assertEquals(OutputFormat.TXT, config.format)
@@ -52,11 +52,12 @@ class SSLTestTest {
         val config =
             parseConfig(
                 arrayOf(
+                    "example.com",
                     "--connect-timeout",
                     "10000",
-                    "--output-format",
+                    "--format",
                     "JSON",
-                    "--output-file",
+                    "--output",
                     "test.json",
                 ),
             )

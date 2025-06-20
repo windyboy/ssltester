@@ -2,8 +2,11 @@ package org.example.model
 
 sealed class OutputFormat(val value: String) {
     data object TXT : OutputFormat("TXT")
+
     data object JSON : OutputFormat("JSON")
+
     data object YAML : OutputFormat("YAML")
+
     data object UNKNOWN : OutputFormat("UNKNOWN")
 
     companion object {
