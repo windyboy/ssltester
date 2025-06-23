@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  VERSION: '{{.VERSION | default (exec "grep" "const val VERSION" "app/src/main/kotlin/org/example/Version.kt" | sed "s/.*\"\\(.*\\)\".*/\\1/")}}'
+  VERSION: '{{.VERSION | default "0.0.2"}}'
   RELEASE_NAME: 'Release v{{.VERSION}}'
   PROJECT_NAME: 'ssltest'
   HOST: '{{.HOST | default "example.com"}}'
@@ -13,6 +13,14 @@ vars:
   DOCKER_IMAGE: '{{.DOCKER_REGISTRY}}/{{.GITHUB_USER}}/{{.PROJECT_NAME}}'
 
 tasks:
+  get-version:
+    desc: Get version from Version.kt file
+    internal: true
+    silent: true
+    cmds:
+      - |
+        grep "const val VERSION" app/src/main/kotlin/org/example/Version.kt | sed "s/.*\"\\(.*\\)\".*/\\1/"
+
   help:
     desc: Show this help message
     cmds:
@@ -134,7 +142,7 @@ tasks:
     desc: Run the application
     cmds:
       - |
-        ./gradlew :app:run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --output-format {{.FORMAT}}{{if .OUTPUT}} --output-file {{.OUTPUT}}{{end}}"
+        ./gradlew :app:run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --format {{.FORMAT}}{{if .OUTPUT}} --output {{.OUTPUT}}{{end}}"
 
   changelog:
     desc: Generate changelog
