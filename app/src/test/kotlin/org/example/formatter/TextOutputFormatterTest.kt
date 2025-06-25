@@ -9,8 +9,8 @@ import java.time.Duration
 import java.util.Date
 import javax.security.auth.x500.X500Principal
 import kotlin.test.Test
-import kotlin.test.assertTrue
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TextOutputFormatterTest {
     private val formatter = TextOutputFormatter()
@@ -140,18 +140,19 @@ class TextOutputFormatterTest {
     @Test
     fun `test format with very long hostname`() {
         val longHost = "a".repeat(100) + ".example.com"
-        val connection = SSLConnection(
-            host = longHost,
-            port = 443,
-            protocol = "TLSv1.3",
-            cipherSuite = "TLS_AES_256_GCM_SHA384",
-            handshakeTime = Duration.ofMillis(150),
-            isSecure = true,
-            certificateChain = emptyList()
-        )
-        
+        val connection =
+            SSLConnection(
+                host = longHost,
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(150),
+                isSecure = true,
+                certificateChain = emptyList(),
+            )
+
         val result = formatter.format(connection)
-        
+
         assertTrue(result.contains(longHost))
         assertTrue(result.contains("443"))
         assertTrue(result.contains("TLSv1.3"))

@@ -34,11 +34,38 @@ class JsonOutputFormatter {
                 "certificates" to
                     connection.certificateChain.map { cert ->
                         mapOf(
-                            "subject" to try { cert.subjectX500Principal.toString() } catch (e: Exception) { "Error: ${e.message}" },
-                            "issuer" to try { cert.issuerX500Principal.toString() } catch (e: Exception) { "Error: ${e.message}" },
-                            "validFrom" to try { formatDate(cert.notBefore.toInstant()) } catch (e: Exception) { "Error: ${e.message}" },
-                            "validUntil" to try { formatDate(cert.notAfter.toInstant()) } catch (e: Exception) { "Error: ${e.message}" },
-                            "serialNumber" to try { cert.serialNumber.toString(16).uppercase() } catch (e: Exception) { "Error: ${e.message}" },
+                            "subject" to
+                                try {
+                                    cert.subjectX500Principal.toString()
+                                } catch (e: Exception) {
+                                    "Error: ${e.message}"
+                                },
+                            "issuer" to
+                                try {
+                                    cert.issuerX500Principal.toString()
+                                } catch (e: Exception) {
+                                    "Error: ${e.message}"
+                                },
+                            "validFrom" to
+                                try {
+                                    formatDate(cert.notBefore.toInstant())
+                                } catch (e: Exception) {
+                                    "Error: ${e.message}"
+                                },
+                            "validUntil" to
+                                try {
+                                    formatDate(cert.notAfter.toInstant())
+                                } catch (e: Exception) {
+                                    "Error: ${e.message}"
+                                },
+                            "serialNumber" to
+                                try {
+                                    cert.serialNumber.toString(16).uppercase()
+                                } catch (
+                                    e: Exception,
+                                ) {
+                                    "Error: ${e.message}"
+                                },
                         )
                     },
             )

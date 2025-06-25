@@ -1,17 +1,23 @@
 package org.example.cli
 
-import io.mockk.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.spyk
+import io.mockk.verify
 import org.example.SSLConnectionTesterImpl
 import org.example.exception.SSLTestException
+import org.example.formatter.JsonOutputFormatter
+import org.example.formatter.TextOutputFormatter
+import org.example.formatter.YamlOutputFormatter
 import org.example.model.OutputFormat
 import org.example.model.SSLConnection
 import org.example.model.SSLTestConfig
+import org.junit.jupiter.api.Assertions.assertThrows
 import picocli.CommandLine
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.time.Duration
 import kotlin.test.*
-import org.junit.jupiter.api.Assertions.assertThrows
 
 class SSLTestCommandTest {
     private lateinit var command: SSLTestCommand
@@ -63,7 +69,7 @@ class SSLTestCommandTest {
     @Test
     fun `test output format converter`() {
         val converter = OutputFormatConverter()
-        
+
         assertEquals(OutputFormat.TXT, converter.convert("txt"))
         assertEquals(OutputFormat.JSON, converter.convert("json"))
         assertEquals(OutputFormat.YAML, converter.convert("yaml"))
@@ -79,7 +85,7 @@ class SSLTestCommandTest {
     fun `test command line parsing with minimal arguments`() {
         val args = arrayOf("example.com")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(0, exitCode)
         assertEquals("example.com", command.host)
         assertEquals(443, command.port) // default
@@ -89,15 +95,16 @@ class SSLTestCommandTest {
 
     @Test
     fun `test command line parsing with all arguments`() {
-        val args = arrayOf(
-            "test.example.com",
-            "--port", "8443",
-            "--connect-timeout", "3000",
-            "--format", "json",
-            "--output", "test.json"
-        )
+        val args =
+            arrayOf(
+                "test.example.com",
+                "--port", "8443",
+                "--connect-timeout", "3000",
+                "--format", "json",
+                "--output", "test.json",
+            )
         CommandLine(command).parseArgs(*args)
-        
+
         assertEquals("test.example.com", command.host)
         assertEquals(8443, command.port)
         assertEquals(3000, command.connectionTimeout)
@@ -107,14 +114,18 @@ class SSLTestCommandTest {
 
     @Test
     fun `test command line parsing with short options`() {
-        val args = arrayOf(
-            "test.example.com",
-            "-p", "8443",
-            "-f", "yaml",
-            "-o", "test.yaml"
-        )
+        val args =
+            arrayOf(
+                "test.example.com",
+                "-p",
+                "8443",
+                "-f",
+                "yaml",
+                "-o",
+                "test.yaml",
+            )
         CommandLine(command).parseArgs(*args)
-        
+
         assertEquals("test.example.com", command.host)
         assertEquals(8443, command.port)
         assertEquals(OutputFormat.YAML, command.format)
@@ -125,7 +136,7 @@ class SSLTestCommandTest {
     fun `test command line help`() {
         val args = arrayOf("--help")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(0, exitCode)
         val output = outContent.toString()
         assertTrue(output.contains("Test SSL/TLS connections to remote hosts"))
@@ -138,7 +149,7 @@ class SSLTestCommandTest {
     fun `test command line version`() {
         val args = arrayOf("--version")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(0, exitCode)
         val output = outContent.toString().trim()
         assertTrue(output == "0.0.2")
@@ -148,7 +159,7 @@ class SSLTestCommandTest {
     fun `test command line missing host parameter`() {
         val args = arrayOf<String>()
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli returns 2 for missing required parameters
         val output = errContent.toString()
         assertTrue(output.contains("Missing required parameter"))
@@ -158,7 +169,7 @@ class SSLTestCommandTest {
     fun `test command line invalid port`() {
         val args = arrayOf("example.com", "--port", "99999")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -166,7 +177,7 @@ class SSLTestCommandTest {
     fun `test command line invalid timeout`() {
         val args = arrayOf("example.com", "--connect-timeout", "-1")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -174,7 +185,7 @@ class SSLTestCommandTest {
     fun `test command line invalid format`() {
         val args = arrayOf("example.com", "--format", "invalid")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -183,9 +194,9 @@ class SSLTestCommandTest {
         command.host = "example.com"
         command.port = 443
         command.format = OutputFormat.TXT
-        
+
         val exitCode = command.call()
-        
+
         // Should return 0 for successful execution
         // Note: This test may fail if example.com is not accessible
         // In a real scenario, you'd mock the SSLConnectionTesterImpl
@@ -197,9 +208,9 @@ class SSLTestCommandTest {
         command.host = "example.com"
         command.port = 443
         command.format = OutputFormat.JSON
-        
+
         val exitCode = command.call()
-        
+
         assertTrue(exitCode in listOf(0, 1))
     }
 
@@ -208,9 +219,9 @@ class SSLTestCommandTest {
         command.host = "example.com"
         command.port = 443
         command.format = OutputFormat.YAML
-        
+
         val exitCode = command.call()
-        
+
         assertTrue(exitCode in listOf(0, 1))
     }
 
@@ -220,9 +231,9 @@ class SSLTestCommandTest {
         command.port = 443
         command.format = OutputFormat.JSON
         command.outputFile = "test_output.json"
-        
+
         val exitCode = command.call()
-        
+
         assertTrue(exitCode in listOf(0, 1))
         // In a real test, you'd verify the file was created
     }
@@ -232,9 +243,9 @@ class SSLTestCommandTest {
         command.host = "example.com"
         command.port = 443
         command.connectionTimeout = 1000 // 1 second timeout
-        
+
         val exitCode = command.call()
-        
+
         assertTrue(exitCode in listOf(0, 1))
     }
 
@@ -242,9 +253,9 @@ class SSLTestCommandTest {
     fun `test command with non-standard port`() {
         command.host = "example.com"
         command.port = 8443 // Non-standard HTTPS port
-        
+
         val exitCode = command.call()
-        
+
         assertTrue(exitCode in listOf(0, 1))
     }
 
@@ -254,7 +265,7 @@ class SSLTestCommandTest {
         val args1 = arrayOf("")
         CommandLine(command).parseArgs(*args1)
         assertEquals("", command.host)
-        
+
         // Test with very long hostname
         val longHost = "a".repeat(1000) + ".example.com"
         val args2 = arrayOf(longHost)
@@ -266,7 +277,7 @@ class SSLTestCommandTest {
     fun `test command line parsing with special characters`() {
         val args = arrayOf("test-host.example.com")
         CommandLine(command).parseArgs(*args)
-        
+
         assertEquals("test-host.example.com", command.host)
     }
 
@@ -274,7 +285,7 @@ class SSLTestCommandTest {
     fun `test command line parsing with IPv4 address`() {
         val args = arrayOf("192.168.1.1", "--port", "443")
         CommandLine(command).parseArgs(*args)
-        
+
         assertEquals("192.168.1.1", command.host)
         assertEquals(443, command.port)
     }
@@ -283,7 +294,7 @@ class SSLTestCommandTest {
     fun `test command line parsing with IPv6 address`() {
         val args = arrayOf("::1", "--port", "443")
         CommandLine(command).parseArgs(*args)
-        
+
         assertEquals("::1", command.host)
         assertEquals(443, command.port)
     }
@@ -292,7 +303,7 @@ class SSLTestCommandTest {
     fun `test command with invalid port range`() {
         val args = arrayOf("example.com", "--port", "0")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -300,7 +311,7 @@ class SSLTestCommandTest {
     fun `test command with port above maximum`() {
         val args = arrayOf("example.com", "--port", "65536")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -308,7 +319,7 @@ class SSLTestCommandTest {
     fun `test command with negative timeout`() {
         val args = arrayOf("example.com", "--connect-timeout", "-1")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -316,7 +327,7 @@ class SSLTestCommandTest {
     fun `test command with zero timeout`() {
         val args = arrayOf("example.com", "--connect-timeout", "0")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail, not validation error
     }
 
@@ -324,7 +335,7 @@ class SSLTestCommandTest {
     fun `test command with very large timeout`() {
         val args = arrayOf("example.com", "--connect-timeout", "999999")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -333,7 +344,7 @@ class SSLTestCommandTest {
     fun `test command with empty hostname`() {
         val args = arrayOf("", "--port", "443")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -341,7 +352,7 @@ class SSLTestCommandTest {
     fun `test command with whitespace only hostname`() {
         val args = arrayOf("   ", "--port", "443")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -349,7 +360,7 @@ class SSLTestCommandTest {
     fun `test command with special characters in hostname`() {
         val args = arrayOf("test-host.example.com", "--port", "443")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -357,7 +368,7 @@ class SSLTestCommandTest {
     fun `test command with IPv4 address`() {
         val args = arrayOf("192.168.1.1", "--port", "443")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -365,34 +376,39 @@ class SSLTestCommandTest {
     fun `test command with IPv6 address`() {
         val args = arrayOf("::1", "--port", "443")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
     @Test
     fun `test command with all options`() {
-        val args = arrayOf(
-            "example.com",
-            "--port", "8443",
-            "--connect-timeout", "10000",
-            "--format", "json",
-            "--output", "test_output.json"
-        )
+        val args =
+            arrayOf(
+                "example.com",
+                "--port", "8443",
+                "--connect-timeout", "10000",
+                "--format", "json",
+                "--output", "test_output.json",
+            )
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
     @Test
     fun `test command with short options`() {
-        val args = arrayOf(
-            "example.com",
-            "-p", "8443",
-            "-f", "yaml",
-            "-o", "test_output.yaml"
-        )
+        val args =
+            arrayOf(
+                "example.com",
+                "-p",
+                "8443",
+                "-f",
+                "yaml",
+                "-o",
+                "test_output.yaml",
+            )
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -400,7 +416,7 @@ class SSLTestCommandTest {
     fun `test command with mixed case format`() {
         val args = arrayOf("example.com", "--format", "Json")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -409,7 +425,7 @@ class SSLTestCommandTest {
     fun `test command with uppercase format`() {
         val args = arrayOf("example.com", "--format", "JSON")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -418,7 +434,7 @@ class SSLTestCommandTest {
     fun `test command with yaml format`() {
         val args = arrayOf("example.com", "--format", "yaml")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -427,7 +443,7 @@ class SSLTestCommandTest {
     fun `test command with txt format`() {
         val args = arrayOf("example.com", "--format", "txt")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -436,7 +452,7 @@ class SSLTestCommandTest {
     fun `test command with output file path`() {
         val args = arrayOf("example.com", "--output", "test_output.txt")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -445,7 +461,7 @@ class SSLTestCommandTest {
     fun `test command with output file in subdirectory`() {
         val args = arrayOf("example.com", "--output", "test/test_output.txt")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -453,7 +469,7 @@ class SSLTestCommandTest {
     fun `test command with absolute output path`() {
         val args = arrayOf("example.com", "--output", "/tmp/test_output.txt")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -462,10 +478,10 @@ class SSLTestCommandTest {
     fun `test command with very long hostname`() {
         val longHost = "a".repeat(100) + ".example.com"
         val args = arrayOf(longHost, "--port", "443")
-        
+
         val command = SSLTestCommand()
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode)
         assertEquals(longHost, command.host)
     }
@@ -474,7 +490,7 @@ class SSLTestCommandTest {
     fun `test command with multiple arguments`() {
         val args = arrayOf("example.com", "extra-arg")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli error for unexpected arguments
     }
 
@@ -482,7 +498,7 @@ class SSLTestCommandTest {
     fun `test command with unknown option`() {
         val args = arrayOf("example.com", "--unknown-option")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli error for unknown option
     }
 
@@ -490,7 +506,7 @@ class SSLTestCommandTest {
     fun `test command with missing option value`() {
         val args = arrayOf("example.com", "--port")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli error for missing value
     }
 
@@ -498,7 +514,7 @@ class SSLTestCommandTest {
     fun `test command with non-numeric port`() {
         val args = arrayOf("example.com", "--port", "abc")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -506,7 +522,7 @@ class SSLTestCommandTest {
     fun `test command with non-numeric timeout`() {
         val args = arrayOf("example.com", "--connect-timeout", "abc")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -514,7 +530,7 @@ class SSLTestCommandTest {
     fun `test command with decimal port`() {
         val args = arrayOf("example.com", "--port", "443.5")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -522,7 +538,7 @@ class SSLTestCommandTest {
     fun `test command with decimal timeout`() {
         val args = arrayOf("example.com", "--connect-timeout", "5000.5")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -530,7 +546,7 @@ class SSLTestCommandTest {
     fun `test command with maximum valid port`() {
         val args = arrayOf("example.com", "--port", "65535")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -538,7 +554,7 @@ class SSLTestCommandTest {
     fun `test command with minimum valid port`() {
         val args = arrayOf("example.com", "--port", "1")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(1, exitCode) // Connection will fail
     }
 
@@ -546,7 +562,7 @@ class SSLTestCommandTest {
     fun `test command with maximum valid timeout`() {
         val args = arrayOf("example.com", "--connect-timeout", "30000")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         // Exit code depends on network connectivity: 0 for success, 1 for connection failure
         assertTrue(exitCode in listOf(0, 1))
     }
@@ -555,7 +571,7 @@ class SSLTestCommandTest {
     fun `test command with timeout above maximum`() {
         val args = arrayOf("example.com", "--connect-timeout", "2147483648")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -563,7 +579,7 @@ class SSLTestCommandTest {
     fun `test command with port below minimum`() {
         val args = arrayOf("example.com", "--port", "-1")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
 
@@ -571,7 +587,7 @@ class SSLTestCommandTest {
     fun `test command with timeout below minimum`() {
         val args = arrayOf("example.com", "--connect-timeout", "-1")
         val exitCode = CommandLine(command).execute(*args)
-        
+
         assertEquals(2, exitCode) // picocli validation error
     }
-} 
+}

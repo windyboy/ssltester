@@ -1,9 +1,14 @@
 package org.example.model
 
-import kotlin.test.*
+import org.example.model.OutputFormat
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
+import kotlin.test.assertNotEquals
 
 class OutputFormatTest {
-
     @Test
     fun `test TXT format`() {
         val format = OutputFormat.TXT
@@ -146,7 +151,7 @@ class OutputFormatTest {
     fun `test valueOf with very long string`() {
         val longString = "a".repeat(100)
         val result = OutputFormat.valueOf(longString.uppercase())
-        
+
         assertEquals(OutputFormat.UNKNOWN, result)
     }
 
@@ -190,12 +195,13 @@ class OutputFormatTest {
 
     @Test
     fun `test all format values`() {
-        val formats = listOf(
-            OutputFormat.TXT,
-            OutputFormat.JSON,
-            OutputFormat.YAML,
-            OutputFormat.UNKNOWN
-        )
+        val formats =
+            listOf(
+                OutputFormat.TXT,
+                OutputFormat.JSON,
+                OutputFormat.YAML,
+                OutputFormat.UNKNOWN,
+            )
 
         assertEquals(4, formats.size)
         assertTrue(formats.contains(OutputFormat.TXT))
@@ -206,12 +212,13 @@ class OutputFormatTest {
 
     @Test
     fun `test format value uniqueness`() {
-        val values = listOf(
-            OutputFormat.TXT.value,
-            OutputFormat.JSON.value,
-            OutputFormat.YAML.value,
-            OutputFormat.UNKNOWN.value
-        )
+        val values =
+            listOf(
+                OutputFormat.TXT.value,
+                OutputFormat.JSON.value,
+                OutputFormat.YAML.value,
+                OutputFormat.UNKNOWN.value,
+            )
 
         assertEquals(values.size, values.toSet().size) // All values should be unique
     }
@@ -242,14 +249,14 @@ class OutputFormatTest {
     fun `test format value edge cases`() {
         // Test with single character
         assertEquals(OutputFormat.UNKNOWN, OutputFormat.valueOf("t"))
-        
+
         // Test with very long valid format
         val longTxt = "txt".repeat(100)
         assertEquals(OutputFormat.UNKNOWN, OutputFormat.valueOf(longTxt))
-        
+
         // Test with only spaces
         assertEquals(OutputFormat.UNKNOWN, OutputFormat.valueOf("   "))
-        
+
         // Test with tabs and newlines
         assertEquals(OutputFormat.UNKNOWN, OutputFormat.valueOf("\t\n"))
     }
@@ -318,4 +325,4 @@ class OutputFormatTest {
     fun `test format value with backticks`() {
         assertEquals(OutputFormat.UNKNOWN, OutputFormat.valueOf("`txt`"))
     }
-} 
+}

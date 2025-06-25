@@ -14,7 +14,6 @@ import picocli.CommandLine.Command
 import picocli.CommandLine.ITypeConverter
 import picocli.CommandLine.Option
 import picocli.CommandLine.Parameters
-import picocli.CommandLine.ParameterException
 import java.io.File
 import java.time.Duration
 import java.util.concurrent.Callable
@@ -60,7 +59,7 @@ class SSLTestCommand : Callable<Int> {
         names = ["-p", "--port"],
         description = ["Port number (default: 443)"],
         paramLabel = "<port>",
-        arity = "0..1"
+        arity = "0..1",
     )
     var port: Int = 443
 
@@ -71,7 +70,7 @@ class SSLTestCommand : Callable<Int> {
         names = ["--connect-timeout"],
         description = ["Connection timeout in milliseconds (default: 5000)"],
         paramLabel = "<connectionTimeout>",
-        arity = "0..1"
+        arity = "0..1",
     )
     var connectionTimeout: Int = 5000
 

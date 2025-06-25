@@ -1,9 +1,10 @@
 package org.example
 
-import kotlin.test.*
+import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class VersionTest {
-
     @Test
     fun `test version constants`() {
         assertEquals("0.0.2", Version.VERSION)
@@ -30,4 +31,4 @@ class VersionTest {
         assertTrue(description.contains("TLS"))
         assertTrue(description.contains("Test"))
     }
-} 
+}

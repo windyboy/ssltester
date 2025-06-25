@@ -120,7 +120,7 @@ tasks.named<JavaExec>("run") {
 // Testing configuration
 tasks.test {
     useJUnitPlatform()
-    ignoreFailures = true  // Ignore test failures for coverage generation
+    ignoreFailures = true // Ignore test failures for coverage generation
     jvmArgs(
         listOf(
             "-javaagent:${classpath.find { it.name.contains("byte-buddy-agent") }?.absolutePath}",
@@ -231,7 +231,7 @@ tasks.register("showCoverage") {
     dependsOn(tasks.jacocoTestReport)
     group = "verification"
     description = "Show test coverage in source code"
-    
+
     doLast {
         println("📊 Test Coverage Report")
         println("=======================")
@@ -254,7 +254,7 @@ tasks.register("checkCoverage") {
     dependsOn(tasks.jacocoTestCoverageVerification)
     group = "verification"
     description = "Check if test coverage meets minimum thresholds"
-    
+
     doLast {
         println("✅ Coverage thresholds met!")
     }

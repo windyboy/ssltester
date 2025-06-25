@@ -1,14 +1,22 @@
 package org.example.formatter
 
-import io.mockk.every
-import io.mockk.mockk
+import org.example.formatter.YamlOutputFormatter
 import org.example.model.SSLConnection
+import org.example.model.SSLTestConfig
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.math.BigInteger
 import java.security.cert.X509Certificate
 import java.time.Duration
 import java.util.Date
 import javax.security.auth.x500.X500Principal
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
+import io.mockk.every
+import io.mockk.mockk
 
 class YamlOutputFormatterTest {
     private val formatter = YamlOutputFormatter()
@@ -175,7 +183,7 @@ class YamlOutputFormatterTest {
             )
 
         val output = formatter.format(connection)
-        
+
         assertTrue(output.contains("host: \"example.com\""))
         assertTrue(output.contains("port: 443"))
         assertTrue(output.contains("protocol: \"TLSv1.3\""))
@@ -215,14 +223,14 @@ class YamlOutputFormatterTest {
     fun `test format with multiple certificates`() {
         val cert1 = mockk<X509Certificate>()
         val cert2 = mockk<X509Certificate>()
-        
+
         every { cert1.subjectX500Principal } returns X500Principal("CN=leaf.example.com")
         every { cert1.issuerX500Principal } returns X500Principal("CN=intermediate.ca")
         every { cert1.notBefore } returns Date(System.currentTimeMillis() - 86400000)
         every { cert1.notAfter } returns Date(System.currentTimeMillis() + 86400000)
         every { cert1.encoded } returns "test1".toByteArray()
         every { cert1.serialNumber } returns BigInteger.valueOf(12345)
-        
+
         every { cert2.subjectX500Principal } returns X500Principal("CN=intermediate.ca")
         every { cert2.issuerX500Principal } returns X500Principal("CN=root.ca")
         every { cert2.notBefore } returns Date(System.currentTimeMillis() - 172800000)
@@ -309,18 +317,19 @@ class YamlOutputFormatterTest {
     @Test
     fun `test format with very long hostname`() {
         val longHost = "a".repeat(100) + ".example.com"
-        val connection = SSLConnection(
-            host = longHost,
-            port = 443,
-            protocol = "TLSv1.3",
-            cipherSuite = "TLS_AES_256_GCM_SHA384",
-            handshakeTime = Duration.ofMillis(150),
-            isSecure = true,
-            certificateChain = emptyList()
-        )
-        
+        val connection =
+            SSLConnection(
+                host = longHost,
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(150),
+                isSecure = true,
+                certificateChain = emptyList(),
+            )
+
         val result = formatter.format(connection)
-        
+
         assertTrue(result.contains(longHost))
         assertTrue(result.contains("443"))
         assertTrue(result.contains("TLSv1.3"))
