@@ -1,0 +1,52 @@
+version: '3'
+
+# Helper functions for the main Taskfile
+tasks:
+  getVersion:
+    desc: Get version from Version.kt file
+    internal: true
+    silent: true
+    cmds:
+      - |
+        grep "const val VERSION" app/src/main/kotlin/org/example/Version.kt | sed "s/.*\"\\(.*\\)\".*/\\1/"
+
+  checkJavaVersion:
+    desc: Check if Java version meets requirements
+    internal: true
+    silent: true
+    cmds:
+      - |
+        java_version=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
+        if [ "$java_version" -lt "21" ]; then
+          echo "❌ Error: Java 21 or higher is required. Found: $java_version"
+          exit 1
+        fi
+        echo "✅ Java version check passed: $java_version"
+
+  checkDocker:
+    desc: Check if Docker is available
+    internal: true
+    silent: true
+    cmds:
+      - |
+        if ! command -v docker &> /dev/null; then
+          echo "⚠️  Warning: Docker is not installed or not in PATH"
+          exit 1
+        fi
+        echo "✅ Docker is available"
+
+  checkGitHubCLI:
+    desc: Check if GitHub CLI is available and authenticated
+    internal: true
+    silent: true
+    cmds:
+      - |
+        if ! command -v gh &> /dev/null; then
+          echo "⚠️  Warning: GitHub CLI is not installed"
+          exit 1
+        fi
+        if ! gh auth status >/dev/null 2>&1; then
+          echo "⚠️  Warning: GitHub CLI is not authenticated"
+          exit 1
+        fi
+        echo "✅ GitHub CLI is available and authenticated" 
