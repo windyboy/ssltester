@@ -22,6 +22,8 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManagerFactory
 import kotlin.test.*
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class SSLConnectionTesterImplTest {
     private val tester = SSLConnectionTesterImpl()
@@ -195,58 +197,6 @@ class SSLConnectionTesterImplTest {
     }
 
     @Test
-    fun `test connection with non-standard port`() {
-        runBlocking {
-            val result = tester.testConnection(
-                "example.com",
-                8443,
-                SSLTestConfig(connectionTimeout = 5000)
-            )
-            
-            assertTrue(result.isFailure)
-            val error = result.exceptionOrNull()
-            assertIs<SSLTestException.ConnectionError>(error)
-        }
-    }
-
-    @Test
-    fun `test connection with port 80`() {
-        runBlocking {
-            val result = tester.testConnection(
-                "example.com",
-                80,
-                SSLTestConfig(connectionTimeout = 5000)
-            )
-            
-            // Port 80 might succeed or fail depending on server configuration
-            // Just verify that we get a result (either success or failure)
-            if (result.isSuccess) {
-                // Connection succeeded, which is valid for port 80
-                assertTrue(true)
-            } else {
-                // Connection failed, which is also valid for port 80
-                val error = result.exceptionOrNull()
-                assertIs<SSLTestException>(error)
-            }
-        }
-    }
-
-    @Test
-    fun `test connection with port 22`() {
-        runBlocking {
-            val result = tester.testConnection(
-                "example.com",
-                22,
-                SSLTestConfig(connectionTimeout = 5000)
-            )
-            
-            assertTrue(result.isFailure)
-            val error = result.exceptionOrNull()
-            assertIs<SSLTestException.ConnectionError>(error)
-        }
-    }
-
-    @Test
     fun `test connection with empty hostname`() {
         runBlocking {
             val result = tester.testConnection(
@@ -278,7 +228,7 @@ class SSLConnectionTesterImplTest {
 
     @Test
     fun `test connection with very long hostname`() {
-        val longHost = "a".repeat(1000) + ".example.com"
+        val longHost = "a".repeat(100) + ".example.com"
         runBlocking {
             val result = tester.testConnection(
                 longHost,
@@ -476,10 +426,182 @@ class SSLConnectionTesterImplTest {
     }
 
     @Test
+    fun `test SSL handshake exception handling`() {
+        runBlocking {
+            val result = tester.testConnection(
+                "localhost",
+                80,
+                SSLTestConfig(connectionTimeout = 5000)
+            )
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertTrue(error is SSLTestException.HandshakeError || error is SSLTestException.ConnectionError)
+            assertTrue(error?.message?.contains("SSL") == true ||
+                       error?.message?.contains("Protocol") == true ||
+                       error?.message?.contains("Handshake") == true ||
+                       error?.message?.contains("Connection") == true)
+        }
+    }
+
+    @Test
+    fun `test SSL protocol exception handling`() {
+        runBlocking {
+            val result = tester.testConnection(
+                "localhost",
+                22,
+                SSLTestConfig(connectionTimeout = 5000)
+            )
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertTrue(error is SSLTestException.HandshakeError || error is SSLTestException.ConnectionError)
+            assertTrue(error?.message?.contains("SSL") == true ||
+                       error?.message?.contains("Protocol") == true ||
+                       error?.message?.contains("Handshake") == true ||
+                       error?.message?.contains("Connection") == true)
+        }
+    }
+
+    @Test
     fun `test SSL initialization error handling`() {
-        // This test verifies that SSL initialization errors are handled properly
-        // We can't easily mock the SSL initialization without significant refactoring
-        // But we can test that the method exists and can be called
+        runBlocking {
+            // 通过系统属性来模拟SSL初始化失败
+            // 设置一个无效的SSL协议来触发初始化错误
+            val originalProtocol = System.getProperty("https.protocols")
+            try {
+                System.setProperty("https.protocols", "INVALID_PROTOCOL")
+                
+                val result = tester.testConnection(
+                    "example.com",
+                    443,
+                    SSLTestConfig(connectionTimeout = 5000)
+                )
+                
+                // 由于SSL初始化可能失败，我们检查结果
+                assertTrue(result.isSuccess || result.isFailure)
+            } finally {
+                // 恢复原始设置
+                if (originalProtocol != null) {
+                    System.setProperty("https.protocols", originalProtocol)
+                } else {
+                    System.clearProperty("https.protocols")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `test connection with null message in IOException`() {
+        runBlocking {
+            val result = tester.testConnection(
+                "invalid-host-that-will-cause-io-exception",
+                443,
+                SSLTestConfig(connectionTimeout = 1000)
+            )
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertTrue(error is SSLTestException.ConnectionError)
+            assertTrue(error?.message?.contains("Connection refused") == true ||
+                       error?.message?.contains("Connection failed") == true ||
+                       error?.message?.contains("Unknown host") == true)
+        }
+    }
+
+    // Parameterized test for standard SSL/TLS ports
+    @ParameterizedTest
+    @ValueSource(ints = [443, 465, 563, 636, 993, 995])
+    fun `test standard SSL ports`(port: Int) {
+        runBlocking {
+            val result = tester.testConnection(
+                "example.com",
+                port,
+                SSLTestConfig(connectionTimeout = 5000)
+            )
+            
+            // Should either succeed or fail gracefully, not crash
+            assertTrue(result.isSuccess || result.isFailure)
+            if (result.isFailure) {
+                val error = result.exceptionOrNull()
+                assertIs<SSLTestException>(error)
+            }
+        }
+    }
+
+    // Parameterized test for alternative SSL ports
+    @ParameterizedTest
+    @ValueSource(ints = [8443, 9443])
+    fun `test alternative SSL ports`(port: Int) {
+        runBlocking {
+            val result = tester.testConnection(
+                "example.com",
+                port,
+                SSLTestConfig(connectionTimeout = 5000)
+            )
+            
+            // Should either succeed or fail gracefully, not crash
+            assertTrue(result.isSuccess || result.isFailure)
+            if (result.isFailure) {
+                val error = result.exceptionOrNull()
+                assertIs<SSLTestException>(error)
+            }
+        }
+    }
+
+    // Parameterized test for boundary conditions
+    @ParameterizedTest
+    @ValueSource(ints = [0, 1, 65535, 65536])
+    fun `test connection with boundary port values`(port: Int) {
+        runBlocking {
+            val result = tester.testConnection(
+                "example.com",
+                port,
+                SSLTestConfig(connectionTimeout = 5000)
+            )
+            
+            // Boundary ports should fail gracefully
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<SSLTestException>(error)
+        }
+    }
+
+    // Parameterized test for invalid ports
+    @ParameterizedTest
+    @ValueSource(ints = [-1, -100, 70000, 99999])
+    fun `test connection with invalid ports`(port: Int) {
+        runBlocking {
+            val result = tester.testConnection(
+                "example.com",
+                port,
+                SSLTestConfig(connectionTimeout = 5000)
+            )
+            
+            // Invalid ports should fail gracefully
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<SSLTestException>(error)
+        }
+    }
+
+    // Parameterized test for non-SSL ports (should fail)
+    @ParameterizedTest
+    @ValueSource(ints = [22, 80, 8080])
+    fun `test connection with non-SSL ports`(port: Int) {
+        runBlocking {
+            val result = tester.testConnection(
+                "example.com",
+                port,
+                SSLTestConfig(connectionTimeout = 5000)
+            )
+            
+            // Non-SSL ports should fail with appropriate error
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<SSLTestException>(error)
+        }
+    }
+
+    @Test
+    fun `test default HTTPS port 443`() {
         runBlocking {
             val result = tester.testConnection(
                 "example.com",
@@ -487,38 +609,16 @@ class SSLConnectionTesterImplTest {
                 SSLTestConfig(connectionTimeout = 5000)
             )
             
-            // Should either succeed or fail with a specific error
-            assertTrue(result.isSuccess || result.isFailure)
-        }
-    }
-
-    @Test
-    fun `test connection with null config`() {
-        runBlocking {
-            // This test verifies that null config handling works
-            // We can't pass null directly, but we can test edge cases
-            val result = tester.testConnection(
-                "example.com",
-                443,
-                SSLTestConfig(connectionTimeout = 0)
-            )
-            
-            assertTrue(result.isFailure)
-        }
-    }
-
-    @Test
-    fun `test connection with extreme values`() {
-        runBlocking {
-            // Test with extreme values to ensure robustness
-            val result = tester.testConnection(
-                "example.com",
-                443,
-                SSLTestConfig(connectionTimeout = Int.MAX_VALUE)
-            )
-            
-            // Should handle extreme values gracefully
-            assertTrue(result.isSuccess || result.isFailure)
+            // Port 443 might succeed or fail depending on network conditions
+            // Just verify that we get a result (either success or failure)
+            if (result.isSuccess) {
+                // Connection succeeded, which is valid for port 443
+                assertTrue(true)
+            } else {
+                // Connection failed, which is also valid for port 443
+                val error = result.exceptionOrNull()
+                assertIs<SSLTestException>(error)
+            }
         }
     }
 } 

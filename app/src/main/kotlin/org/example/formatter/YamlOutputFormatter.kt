@@ -32,11 +32,11 @@ class YamlOutputFormatter {
                 "certificates" to
                     connection.certificateChain.map { cert ->
                         mapOf(
-                            "subject" to cert.subjectX500Principal.toString(),
-                            "issuer" to cert.issuerX500Principal.toString(),
-                            "validFrom" to formatDate(cert.notBefore.toInstant()),
-                            "validUntil" to formatDate(cert.notAfter.toInstant()),
-                            "serialNumber" to cert.serialNumber.toString(16).uppercase(),
+                            "subject" to try { cert.subjectX500Principal.toString() } catch (e: Exception) { "Error: ${e.message}" },
+                            "issuer" to try { cert.issuerX500Principal.toString() } catch (e: Exception) { "Error: ${e.message}" },
+                            "validFrom" to try { formatDate(cert.notBefore.toInstant()) } catch (e: Exception) { "Error: ${e.message}" },
+                            "validUntil" to try { formatDate(cert.notAfter.toInstant()) } catch (e: Exception) { "Error: ${e.message}" },
+                            "serialNumber" to try { cert.serialNumber.toString(16).uppercase() } catch (e: Exception) { "Error: ${e.message}" },
                         )
                     },
             )

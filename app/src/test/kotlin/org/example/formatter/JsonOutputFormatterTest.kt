@@ -3,10 +3,12 @@ package org.example.formatter
 import io.mockk.every
 import io.mockk.mockk
 import org.example.model.SSLConnection
+import java.math.BigInteger
 import java.security.cert.X509Certificate
 import java.time.Duration
-import kotlin.test.Test
-import kotlin.test.assertTrue
+import java.util.Date
+import javax.security.auth.x500.X500Principal
+import kotlin.test.*
 
 class JsonOutputFormatterTest {
     private val formatter = JsonOutputFormatter()
@@ -131,5 +133,229 @@ class JsonOutputFormatterTest {
         assertTrue(result.contains("\"subject\" : \"CN=test.com, O=Test Org\""))
         assertTrue(result.contains("\"subject\" : \"CN=Test CA, O=Test Org\""))
         assertTrue(result.contains("\"issuer\" : \"CN=Root CA, O=Root Org\""))
+    }
+
+    @Test
+    fun `test format secure connection`() {
+        val cert = mockk<X509Certificate>()
+        every { cert.subjectX500Principal } returns X500Principal("CN=example.com")
+        every { cert.issuerX500Principal } returns X500Principal("CN=Test CA")
+        every { cert.notBefore } returns Date(System.currentTimeMillis() - 86400000)
+        every { cert.notAfter } returns Date(System.currentTimeMillis() + 86400000)
+        every { cert.encoded } returns "test".toByteArray()
+        every { cert.serialNumber } returns BigInteger.valueOf(12345)
+
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(100),
+                isSecure = true,
+                certificateChain = listOf(cert),
+            )
+
+        val output = formatter.format(connection)
+        
+        assertTrue(output.contains("\"host\" : \"example.com\""))
+        assertTrue(output.contains("\"port\" : 443"))
+        assertTrue(output.contains("\"protocol\" : \"TLSv1.3\""))
+        assertTrue(output.contains("\"cipherSuite\" : \"TLS_AES_256_GCM_SHA384\""))
+        assertTrue(output.contains("\"handshakeTimeMs\" : 100"))
+        assertTrue(output.contains("\"isSecure\" : true"))
+        assertTrue(output.contains("\"certificates\""))
+        assertTrue(output.contains("\"subject\" : \"CN=example.com\""))
+        assertTrue(output.contains("\"issuer\" : \"CN=Test CA\""))
+    }
+
+    @Test
+    fun `test format insecure connection`() {
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "Unknown (Connection failed)",
+                cipherSuite = "Unknown",
+                handshakeTime = Duration.ofMillis(50),
+                isSecure = false,
+                certificateChain = emptyList(),
+            )
+
+        val output = formatter.format(connection)
+
+        assertTrue(output.contains("\"host\" : \"example.com\""))
+        assertTrue(output.contains("\"port\" : 443"))
+        assertTrue(output.contains("\"protocol\" : \"Unknown (Connection failed)\""))
+        assertTrue(output.contains("\"cipherSuite\" : \"Unknown\""))
+        assertTrue(output.contains("\"handshakeTimeMs\" : 50"))
+        assertTrue(output.contains("\"isSecure\" : false"))
+        assertTrue(output.contains("\"certificates\" : [ ]"))
+    }
+
+    @Test
+    fun `test format with multiple certificates`() {
+        val cert1 = mockk<X509Certificate>()
+        val cert2 = mockk<X509Certificate>()
+        
+        every { cert1.subjectX500Principal } returns X500Principal("CN=leaf.example.com")
+        every { cert1.issuerX500Principal } returns X500Principal("CN=intermediate.ca")
+        every { cert1.notBefore } returns Date(System.currentTimeMillis() - 86400000)
+        every { cert1.notAfter } returns Date(System.currentTimeMillis() + 86400000)
+        every { cert1.encoded } returns "test1".toByteArray()
+        every { cert1.serialNumber } returns BigInteger.valueOf(12345)
+        
+        every { cert2.subjectX500Principal } returns X500Principal("CN=intermediate.ca")
+        every { cert2.issuerX500Principal } returns X500Principal("CN=root.ca")
+        every { cert2.notBefore } returns Date(System.currentTimeMillis() - 172800000)
+        every { cert2.notAfter } returns Date(System.currentTimeMillis() + 172800000)
+        every { cert2.encoded } returns "test2".toByteArray()
+        every { cert2.serialNumber } returns BigInteger.valueOf(67890)
+
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(100),
+                isSecure = true,
+                certificateChain = listOf(cert1, cert2),
+            )
+
+        val output = formatter.format(connection)
+
+        assertTrue(output.contains("\"certificates\""))
+        assertTrue(output.contains("\"subject\" : \"CN=leaf.example.com\""))
+        assertTrue(output.contains("\"subject\" : \"CN=intermediate.ca\""))
+        assertTrue(output.contains("\"issuer\" : \"CN=root.ca\""))
+    }
+
+    @Test
+    fun `test format with certificate error`() {
+        val cert = mockk<X509Certificate>()
+        every { cert.subjectX500Principal } throws RuntimeException("Certificate error")
+        every { cert.issuerX500Principal } returns X500Principal("CN=Test CA")
+        every { cert.notBefore } returns Date(System.currentTimeMillis() - 86400000)
+        every { cert.notAfter } returns Date(System.currentTimeMillis() + 86400000)
+        every { cert.encoded } returns "test".toByteArray()
+        every { cert.serialNumber } returns BigInteger.valueOf(12345)
+
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(100),
+                isSecure = true,
+                certificateChain = listOf(cert),
+            )
+
+        val output = formatter.format(connection)
+        // Should handle the error gracefully and still produce valid JSON
+        assertTrue(output.contains("\"certificates\""))
+    }
+
+    @Test
+    fun `test format with encoding error`() {
+        val cert = mockk<X509Certificate>()
+        every { cert.subjectX500Principal } returns X500Principal("CN=example.com")
+        every { cert.issuerX500Principal } returns X500Principal("CN=Test CA")
+        every { cert.notBefore } returns Date(System.currentTimeMillis() - 86400000)
+        every { cert.notAfter } returns Date(System.currentTimeMillis() + 86400000)
+        every { cert.encoded } throws RuntimeException("Encoding error")
+        every { cert.serialNumber } returns BigInteger.valueOf(12345)
+
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(100),
+                isSecure = true,
+                certificateChain = listOf(cert),
+            )
+
+        val output = formatter.format(connection)
+        // Should handle the error gracefully and still produce valid JSON
+        assertTrue(output.contains("\"certificates\""))
+    }
+
+    @Test
+    fun `test getFileExtension`() {
+        assertEquals("json", formatter.getFileExtension())
+    }
+
+    @Test
+    fun `test format with very long hostname`() {
+        val longHost = "a".repeat(100) + ".example.com"
+        val connection = SSLConnection(
+            host = longHost,
+            port = 443,
+            protocol = "TLSv1.3",
+            cipherSuite = "TLS_AES_256_GCM_SHA384",
+            handshakeTime = Duration.ofMillis(150),
+            isSecure = true,
+            certificateChain = emptyList()
+        )
+        
+        val result = formatter.format(connection)
+        
+        assertTrue(result.contains(longHost))
+        assertTrue(result.contains("443"))
+        assertTrue(result.contains("TLSv1.3"))
+    }
+
+    @Test
+    fun `test format with special characters in hostname`() {
+        val connection =
+            SSLConnection(
+                host = "test-host.example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(100),
+                isSecure = true,
+                certificateChain = emptyList(),
+            )
+
+        val output = formatter.format(connection)
+        assertTrue(output.contains("\"host\" : \"test-host.example.com\""))
+    }
+
+    @Test
+    fun `test format with zero handshake time`() {
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(0),
+                isSecure = true,
+                certificateChain = emptyList(),
+            )
+
+        val output = formatter.format(connection)
+        assertTrue(output.contains("\"handshakeTimeMs\" : 0"))
+    }
+
+    @Test
+    fun `test format with very long handshake time`() {
+        val connection =
+            SSLConnection(
+                host = "example.com",
+                port = 443,
+                protocol = "TLSv1.3",
+                cipherSuite = "TLS_AES_256_GCM_SHA384",
+                handshakeTime = Duration.ofMillis(999999),
+                isSecure = true,
+                certificateChain = emptyList(),
+            )
+
+        val output = formatter.format(connection)
+        assertTrue(output.contains("\"handshakeTimeMs\" : 999999"))
     }
 }

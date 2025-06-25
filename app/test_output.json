@@ -3,7 +3,7 @@
   "port" : 443,
   "protocol" : "TLSv1.3",
   "cipherSuite" : "TLS_AES_256_GCM_SHA384",
-  "handshakeTimeMs" : 387,
+  "handshakeTimeMs" : 472,
   "isSecure" : true,
   "certificates" : [ {
     "subject" : "CN=*.example.com, O=Internet Corporation for Assigned Names and Numbers, L=Los Angeles, ST=California, C=US",

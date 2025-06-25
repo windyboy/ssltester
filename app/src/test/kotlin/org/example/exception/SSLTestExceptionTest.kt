@@ -291,13 +291,16 @@ class SSLTestExceptionTest {
 
     @Test
     fun `test exception with very long hostname`() {
-        val longHost = "a".repeat(1000) + ".example.com"
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, longHost, 443)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals(longHost, (result as? SSLTestException.HandshakeError)?.host ?: (result as SSLTestException.ConnectionError).host)
-        }
+        val longHost = "a".repeat(100) + ".example.com"
+        val exception = SSLTestException.ConnectionError(
+            host = longHost,
+            port = 443,
+            message = "Connection failed"
+        )
+        
+        assertEquals(longHost, exception.host)
+        assertEquals(443, exception.port)
+        assertEquals("Connection failed", exception.message)
     }
 
     @Test

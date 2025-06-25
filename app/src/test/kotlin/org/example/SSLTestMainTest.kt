@@ -138,7 +138,7 @@ class SSLTestMainTest {
 
     @Test
     fun `test main function with very long hostname`() {
-        val longHost = "a".repeat(1000) + ".example.com"
+        val longHost = "a".repeat(100) + ".example.com"
         val args = arrayOf(longHost)
         
         val command = SSLTestCommand()

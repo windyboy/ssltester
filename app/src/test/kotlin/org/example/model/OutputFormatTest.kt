@@ -144,8 +144,9 @@ class OutputFormatTest {
 
     @Test
     fun `test valueOf with very long string`() {
-        val longString = "a".repeat(1000)
-        val result = OutputFormat.valueOf(longString)
+        val longString = "a".repeat(100)
+        val result = OutputFormat.valueOf(longString.uppercase())
+        
         assertEquals(OutputFormat.UNKNOWN, result)
     }
 

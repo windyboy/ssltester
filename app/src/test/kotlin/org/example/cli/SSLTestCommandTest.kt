@@ -287,4 +287,291 @@ class SSLTestCommandTest {
         assertEquals("::1", command.host)
         assertEquals(443, command.port)
     }
+
+    @Test
+    fun `test command with invalid port range`() {
+        val args = arrayOf("example.com", "--port", "0")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with port above maximum`() {
+        val args = arrayOf("example.com", "--port", "65536")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with negative timeout`() {
+        val args = arrayOf("example.com", "--connect-timeout", "-1")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with zero timeout`() {
+        val args = arrayOf("example.com", "--connect-timeout", "0")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail, not validation error
+    }
+
+    @Test
+    fun `test command with very large timeout`() {
+        val args = arrayOf("example.com", "--connect-timeout", "999999")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with empty hostname`() {
+        val args = arrayOf("", "--port", "443")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with whitespace only hostname`() {
+        val args = arrayOf("   ", "--port", "443")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with special characters in hostname`() {
+        val args = arrayOf("test-host.example.com", "--port", "443")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with IPv4 address`() {
+        val args = arrayOf("192.168.1.1", "--port", "443")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with IPv6 address`() {
+        val args = arrayOf("::1", "--port", "443")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with all options`() {
+        val args = arrayOf(
+            "example.com",
+            "--port", "8443",
+            "--connect-timeout", "10000",
+            "--format", "json",
+            "--output", "test_output.json"
+        )
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with short options`() {
+        val args = arrayOf(
+            "example.com",
+            "-p", "8443",
+            "-f", "yaml",
+            "-o", "test_output.yaml"
+        )
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with mixed case format`() {
+        val args = arrayOf("example.com", "--format", "Json")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with uppercase format`() {
+        val args = arrayOf("example.com", "--format", "JSON")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with yaml format`() {
+        val args = arrayOf("example.com", "--format", "yaml")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with txt format`() {
+        val args = arrayOf("example.com", "--format", "txt")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with output file path`() {
+        val args = arrayOf("example.com", "--output", "test_output.txt")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with output file in subdirectory`() {
+        val args = arrayOf("example.com", "--output", "test/test_output.txt")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with absolute output path`() {
+        val args = arrayOf("example.com", "--output", "/tmp/test_output.txt")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with very long hostname`() {
+        val longHost = "a".repeat(100) + ".example.com"
+        val args = arrayOf(longHost, "--port", "443")
+        
+        val command = SSLTestCommand()
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode)
+        assertEquals(longHost, command.host)
+    }
+
+    @Test
+    fun `test command with multiple arguments`() {
+        val args = arrayOf("example.com", "extra-arg")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli error for unexpected arguments
+    }
+
+    @Test
+    fun `test command with unknown option`() {
+        val args = arrayOf("example.com", "--unknown-option")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli error for unknown option
+    }
+
+    @Test
+    fun `test command with missing option value`() {
+        val args = arrayOf("example.com", "--port")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli error for missing value
+    }
+
+    @Test
+    fun `test command with non-numeric port`() {
+        val args = arrayOf("example.com", "--port", "abc")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with non-numeric timeout`() {
+        val args = arrayOf("example.com", "--connect-timeout", "abc")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with decimal port`() {
+        val args = arrayOf("example.com", "--port", "443.5")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with decimal timeout`() {
+        val args = arrayOf("example.com", "--connect-timeout", "5000.5")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with maximum valid port`() {
+        val args = arrayOf("example.com", "--port", "65535")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with minimum valid port`() {
+        val args = arrayOf("example.com", "--port", "1")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(1, exitCode) // Connection will fail
+    }
+
+    @Test
+    fun `test command with maximum valid timeout`() {
+        val args = arrayOf("example.com", "--connect-timeout", "30000")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        // Exit code depends on network connectivity: 0 for success, 1 for connection failure
+        assertTrue(exitCode in listOf(0, 1))
+    }
+
+    @Test
+    fun `test command with timeout above maximum`() {
+        val args = arrayOf("example.com", "--connect-timeout", "2147483648")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with port below minimum`() {
+        val args = arrayOf("example.com", "--port", "-1")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
+
+    @Test
+    fun `test command with timeout below minimum`() {
+        val args = arrayOf("example.com", "--connect-timeout", "-1")
+        val exitCode = CommandLine(command).execute(*args)
+        
+        assertEquals(2, exitCode) // picocli validation error
+    }
 } 
