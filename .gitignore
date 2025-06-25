@@ -67,3 +67,6 @@ gen/
 # but since we ignore *.jar above, explicitly re-allow these:
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
+
+# keep the database file
+kls_database.db
