@@ -1,23 +1,16 @@
 package org.example.cli
 
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.spyk
-import io.mockk.verify
-import org.example.SSLConnectionTesterImpl
-import org.example.exception.SSLTestException
-import org.example.formatter.JsonOutputFormatter
-import org.example.formatter.TextOutputFormatter
-import org.example.formatter.YamlOutputFormatter
 import org.example.model.OutputFormat
-import org.example.model.SSLConnection
-import org.example.model.SSLTestConfig
-import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import picocli.CommandLine
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import java.time.Duration
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class SSLTestCommandTest {
     private lateinit var command: SSLTestCommand
@@ -26,7 +19,7 @@ class SSLTestCommandTest {
     private lateinit var outContent: ByteArrayOutputStream
     private lateinit var errContent: ByteArrayOutputStream
 
-    @BeforeTest
+    @BeforeEach
     fun setUp() {
         command = SSLTestCommand()
         originalOut = System.out
@@ -37,7 +30,7 @@ class SSLTestCommandTest {
         System.setErr(PrintStream(errContent))
     }
 
-    @AfterTest
+    @AfterEach
     fun tearDown() {
         System.setOut(originalOut)
         System.setErr(originalErr)
@@ -76,7 +69,7 @@ class SSLTestCommandTest {
         assertEquals(OutputFormat.TXT, converter.convert("TXT"))
         assertEquals(OutputFormat.JSON, converter.convert("JSON"))
         assertEquals(OutputFormat.YAML, converter.convert("YAML"))
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrows<IllegalArgumentException> {
             converter.convert("invalid")
         }
     }

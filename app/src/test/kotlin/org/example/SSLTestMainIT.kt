@@ -15,7 +15,7 @@ class SSLTestMainIT {
     fun `test main function with help flag`() {
         val process =
             ProcessBuilder()
-                .command("java", "-jar", "app/build/libs/app-all.jar", "--help")
+                .command("java", "-jar", "app/build/libs/ssl-test-0.0.2.jar", "--help")
                 .start()
 
         val output = process.inputStream.bufferedReader().readText()
@@ -30,7 +30,7 @@ class SSLTestMainIT {
     fun `test main function with version flag`() {
         val process =
             ProcessBuilder()
-                .command("java", "-jar", "app/build/libs/app-all.jar", "--version")
+                .command("java", "-jar", "app/build/libs/ssl-test-0.0.2.jar", "--version")
                 .start()
 
         val output = process.inputStream.bufferedReader().readText()
@@ -44,7 +44,7 @@ class SSLTestMainIT {
     fun `test main function with invalid host`() {
         val process =
             ProcessBuilder()
-                .command("java", "-jar", "app/build/libs/app-all.jar", "nonexistent.example.com")
+                .command("java", "-jar", "app/build/libs/ssl-test-0.0.2.jar", "nonexistent.example.com")
                 .start()
 
         val exitCode = process.waitFor()
@@ -60,7 +60,7 @@ class SSLTestMainIT {
 
         val process =
             ProcessBuilder()
-                .command("java", "-jar", "app/build/libs/app-all.jar", "example.com", "-o", outputFile.toString())
+                .command("java", "-jar", "app/build/libs/ssl-test-0.0.2.jar", "example.com", "-o", outputFile.toString())
                 .start()
 
         val exitCode = process.waitFor()

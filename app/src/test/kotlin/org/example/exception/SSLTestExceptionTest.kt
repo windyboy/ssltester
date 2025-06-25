@@ -1,19 +1,16 @@
 package org.example.exception
-
-import org.example.exception.SSLTestException
 import org.example.exception.SSLTestException.ConfigurationError
 import org.example.exception.SSLTestException.ConnectionError
 import org.example.exception.SSLTestException.HandshakeError
+import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.test.*
 
 class SSLTestExceptionTest {
     @Test

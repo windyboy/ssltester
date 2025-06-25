@@ -1,18 +1,15 @@
 package org.example.formatter
 
-import org.example.formatter.JsonOutputFormatter
+import io.mockk.every
+import io.mockk.mockk
 import org.example.model.SSLConnection
-import org.example.model.SSLTestConfig
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
-import java.math.BigInteger
+import org.junit.jupiter.api.Test
 import java.security.cert.X509Certificate
 import java.time.Duration
 import java.util.Date
 import javax.security.auth.x500.X500Principal
-import kotlin.test.*
-import io.mockk.every
-import io.mockk.mockk
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class JsonOutputFormatterTest {
     private val formatter = JsonOutputFormatter()
@@ -147,7 +144,7 @@ class JsonOutputFormatterTest {
         every { cert.notBefore } returns Date(System.currentTimeMillis() - 86400000)
         every { cert.notAfter } returns Date(System.currentTimeMillis() + 86400000)
         every { cert.encoded } returns "test".toByteArray()
-        every { cert.serialNumber } returns BigInteger.valueOf(12345)
+        every { cert.serialNumber } returns java.math.BigInteger.valueOf(12345)
 
         val connection =
             SSLConnection(
@@ -207,14 +204,14 @@ class JsonOutputFormatterTest {
         every { cert1.notBefore } returns Date(System.currentTimeMillis() - 86400000)
         every { cert1.notAfter } returns Date(System.currentTimeMillis() + 86400000)
         every { cert1.encoded } returns "test1".toByteArray()
-        every { cert1.serialNumber } returns BigInteger.valueOf(12345)
+        every { cert1.serialNumber } returns java.math.BigInteger.valueOf(12345)
 
         every { cert2.subjectX500Principal } returns X500Principal("CN=intermediate.ca")
         every { cert2.issuerX500Principal } returns X500Principal("CN=root.ca")
         every { cert2.notBefore } returns Date(System.currentTimeMillis() - 172800000)
         every { cert2.notAfter } returns Date(System.currentTimeMillis() + 172800000)
         every { cert2.encoded } returns "test2".toByteArray()
-        every { cert2.serialNumber } returns BigInteger.valueOf(67890)
+        every { cert2.serialNumber } returns java.math.BigInteger.valueOf(67890)
 
         val connection =
             SSLConnection(
@@ -243,7 +240,7 @@ class JsonOutputFormatterTest {
         every { cert.notBefore } returns Date(System.currentTimeMillis() - 86400000)
         every { cert.notAfter } returns Date(System.currentTimeMillis() + 86400000)
         every { cert.encoded } returns "test".toByteArray()
-        every { cert.serialNumber } returns BigInteger.valueOf(12345)
+        every { cert.serialNumber } returns java.math.BigInteger.valueOf(12345)
 
         val connection =
             SSLConnection(
@@ -269,7 +266,7 @@ class JsonOutputFormatterTest {
         every { cert.notBefore } returns Date(System.currentTimeMillis() - 86400000)
         every { cert.notAfter } returns Date(System.currentTimeMillis() + 86400000)
         every { cert.encoded } throws RuntimeException("Encoding error")
-        every { cert.serialNumber } returns BigInteger.valueOf(12345)
+        every { cert.serialNumber } returns java.math.BigInteger.valueOf(12345)
 
         val connection =
             SSLConnection(
