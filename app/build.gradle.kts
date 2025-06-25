@@ -15,7 +15,7 @@ val projectVersion = versionMatch?.groupValues?.get(1) ?: "0.0.2"
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
-    id("org.jetbrains.kotlin.jvm") version "1.9.22"
+    id("org.jetbrains.kotlin.jvm") version "2.1.20"
     // shadow - update to new plugin ID and latest stable version
     id("com.gradleup.shadow") version "8.3.6"
     // Add ktlint plugin for code formatting
@@ -30,7 +30,7 @@ repositories {
 // Version catalog for dependencies
 val versions =
     mapOf(
-        "kotlin" to "1.9.22",
+        "kotlin" to "2.1.20",
         "slf4j" to "2.0.11",
         "logback" to "1.5.13",
         "jackson" to "2.16.1",
@@ -57,8 +57,8 @@ dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:${versions["kotlin"]}"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.8.1")
 
     // Testing
     testImplementation("org.jetbrains.kotlin:kotlin-test")
@@ -80,15 +80,16 @@ java {
 
 // Kotlin configuration
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "21"
-        apiVersion = "1.9"
-        languageVersion = "1.9"
-        freeCompilerArgs =
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
+        freeCompilerArgs.addAll(
             listOf(
                 "-Xjsr305=strict",
                 "-Xjvm-default=all",
-            )
+            ),
+        )
     }
 }
 
@@ -149,8 +150,8 @@ kotlin {
     jvmToolchain(21)
     sourceSets.all {
         languageSettings {
-            languageVersion = "1.9"
-            apiVersion = "1.9"
+            languageVersion = "2.1"
+            apiVersion = "2.1"
         }
     }
 }
