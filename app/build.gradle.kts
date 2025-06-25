@@ -15,11 +15,11 @@ val projectVersion = versionMatch?.groupValues?.get(1) ?: "0.0.2"
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
-    id("org.jetbrains.kotlin.jvm") version "2.1.20"
+    id("org.jetbrains.kotlin.jvm") version "2.1.21"
     // shadow - update to new plugin ID and latest stable version
-    id("com.gradleup.shadow") version "8.3.6"
+    id("com.gradleup.shadow") version "8.3.7"
     // Add ktlint plugin for code formatting
-    id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
 }
 
 repositories {
@@ -30,17 +30,22 @@ repositories {
 // Version catalog for dependencies
 val versions =
     mapOf(
-        "kotlin" to "2.1.20",
-        "slf4j" to "2.0.11",
-        "logback" to "1.5.13",
-        "jackson" to "2.16.1",
+        "kotlin" to "2.1.21",
+        "slf4j" to "2.0.13",
+        "logback" to "1.5.14",
+        "jackson" to "2.17.1",
         "kotlin-logging" to "3.0.5",
+        "coroutines" to "1.8.1",
+        "junit" to "5.11.2",
+        "mockk" to "1.13.9",
+        "bytebuddy" to "1.14.12",
+        "picocli" to "4.7.5",
     )
 
 dependencies {
     // Dependency Injection
     // Picocli for command line argument parsing
-    implementation("info.picocli:picocli:4.7.5")
+    implementation("info.picocli:picocli:${versions["picocli"]}")
 
     // JSON and YAML support
     implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")
@@ -57,18 +62,18 @@ dependencies {
     implementation(platform("org.jetbrains.kotlin:kotlin-bom:${versions["kotlin"]}"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions["coroutines"]}")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${versions["coroutines"]}")
 
     // Testing
     testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
-    testImplementation("io.mockk:mockk:1.13.9")
-    testImplementation("net.bytebuddy:byte-buddy:1.14.12")
-    testImplementation("net.bytebuddy:byte-buddy-agent:1.14.12")
+    testImplementation("org.junit.jupiter:junit-jupiter:${versions["junit"]}")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.11.2")
+    testImplementation("io.mockk:mockk:${versions["mockk"]}")
+    testImplementation("net.bytebuddy:byte-buddy:${versions["bytebuddy"]}")
+    testImplementation("net.bytebuddy:byte-buddy-agent:${versions["bytebuddy"]}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${versions["junit"]}")
 }
 
 // Java configuration
