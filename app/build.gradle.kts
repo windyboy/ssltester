@@ -20,6 +20,8 @@ plugins {
     id("com.gradleup.shadow") version "8.3.7"
     // Add ktlint plugin for code formatting
     id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
+    // Add JaCoCo plugin for test coverage
+    jacoco
 }
 
 repositories {
