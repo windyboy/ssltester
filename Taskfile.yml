@@ -82,8 +82,78 @@ tasks:
     desc: Run tests with coverage report
     cmds:
       - echo "📊 Running tests with coverage..."
-      - ./gradlew test jacocoTestReport
+      - cd app && ../gradlew test jacocoTestReport
       - echo "📈 Coverage report generated in app/build/reports/jacoco/test/html/index.html"
+      - echo "📋 To view coverage in source code, run 'task coverage:show'"
+
+  coverage:show:
+    desc: Show test coverage information and open reports
+    cmds:
+      - echo "📊 Test Coverage Information"
+      - echo "============================"
+      - cd app && ../gradlew showCoverage
+      - |
+        if command -v open >/dev/null 2>&1; then
+          echo ""
+          echo "🌐 Opening HTML coverage report in browser..."
+          open app/build/reports/jacoco/test/html/index.html
+        elif command -v xdg-open >/dev/null 2>&1; then
+          echo ""
+          echo "🌐 Opening HTML coverage report in browser..."
+          xdg-open app/build/reports/jacoco/test/html/index.html
+        else
+          echo ""
+          echo "📁 HTML report location: app/build/reports/jacoco/test/html/index.html"
+          echo "💡 Open this file in your browser to view coverage in source code"
+        fi
+
+  coverage:check:
+    desc: Check if test coverage meets minimum thresholds
+    cmds:
+      - echo "🔍 Checking coverage thresholds..."
+      - cd app && ../gradlew checkCoverage
+      - echo "✅ Coverage verification completed"
+
+  coverage:detailed:
+    desc: Generate detailed coverage report with source code highlighting
+    deps: [test:coverage]
+    cmds:
+      - echo "📊 Generating detailed coverage report..."
+      - cd app && ../gradlew jacocoTestReport
+      - |
+        echo "📈 Coverage Summary:"
+        echo "==================="
+        if [ -f app/build/reports/jacoco/test/jacocoTestReport.xml ]; then
+          echo "✅ XML report generated: app/build/reports/jacoco/test/jacocoTestReport.xml"
+        fi
+        if [ -d app/build/reports/jacoco/test/html ]; then
+          echo "✅ HTML report generated: app/build/reports/jacoco/test/html/"
+          echo "📁 Open index.html to view coverage in source code"
+        fi
+        echo ""
+        echo "🎯 Coverage Thresholds:"
+        echo "- Line coverage: 80%"
+        echo "- Branch coverage: 70%"
+        echo ""
+        echo "💡 Run 'task coverage:check' to verify thresholds are met"
+
+  coverage:open:
+    desc: Open coverage report in default browser
+    cmds:
+      - |
+        if [ ! -f app/build/reports/jacoco/test/html/index.html ]; then
+          echo "❌ Coverage report not found. Run 'task test:coverage' first."
+          exit 1
+        fi
+      - |
+        if command -v open >/dev/null 2>&1; then
+          open app/build/reports/jacoco/test/html/index.html
+        elif command -v xdg-open >/dev/null 2>&1; then
+          xdg-open app/build/reports/jacoco/test/html/index.html
+        else
+          echo "❌ Cannot open browser automatically."
+          echo "📁 Please open: app/build/reports/jacoco/test/html/index.html"
+        fi
 
   build:
     desc: Build the release artifacts

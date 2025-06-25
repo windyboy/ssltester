@@ -14,6 +14,7 @@ import picocli.CommandLine.Command
 import picocli.CommandLine.ITypeConverter
 import picocli.CommandLine.Option
 import picocli.CommandLine.Parameters
+import picocli.CommandLine.ParameterException
 import java.io.File
 import java.time.Duration
 import java.util.concurrent.Callable
@@ -21,7 +22,13 @@ import java.util.concurrent.Callable
 private val logger = KotlinLogging.logger {}
 
 class OutputFormatConverter : ITypeConverter<OutputFormat> {
-    override fun convert(value: String): OutputFormat = OutputFormat.valueOf(value)
+    override fun convert(value: String): OutputFormat {
+        val result = OutputFormat.valueOf(value.uppercase())
+        if (result == OutputFormat.UNKNOWN) {
+            throw IllegalArgumentException("Invalid format: $value. Supported formats: TXT, JSON, YAML.")
+        }
+        return result
+    }
 }
 
 /**
@@ -52,6 +59,8 @@ class SSLTestCommand : Callable<Int> {
     @Option(
         names = ["-p", "--port"],
         description = ["Port number (default: 443)"],
+        paramLabel = "<port>",
+        arity = "0..1"
     )
     var port: Int = 443
 
@@ -61,6 +70,8 @@ class SSLTestCommand : Callable<Int> {
     @Option(
         names = ["--connect-timeout"],
         description = ["Connection timeout in milliseconds (default: 5000)"],
+        paramLabel = "<connectionTimeout>",
+        arity = "0..1"
     )
     var connectionTimeout: Int = 5000
 
@@ -89,6 +100,15 @@ class SSLTestCommand : Callable<Int> {
      */
     override fun call(): Int =
         runBlocking {
+            // Manual validation for port and timeout
+            if (port !in 1..65535) {
+                System.err.println("Error: Port must be between 1 and 65535, but was $port")
+                return@runBlocking 2
+            }
+            if (connectionTimeout < 0) {
+                System.err.println("Error: Timeout cannot be negative, but was $connectionTimeout")
+                return@runBlocking 2
+            }
             try {
                 logger.info { "Testing SSL connection to $host:$port" }
 

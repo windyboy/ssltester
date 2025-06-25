@@ -1,0 +1,21 @@
+{
+  "host" : "example.com",
+  "port" : 443,
+  "protocol" : "TLSv1.3",
+  "cipherSuite" : "TLS_AES_256_GCM_SHA384",
+  "handshakeTimeMs" : 387,
+  "isSecure" : true,
+  "certificates" : [ {
+    "subject" : "CN=*.example.com, O=Internet Corporation for Assigned Names and Numbers, L=Los Angeles, ST=California, C=US",
+    "issuer" : "CN=DigiCert Global G3 TLS ECC SHA384 2020 CA1, O=DigiCert Inc, C=US",
+    "validFrom" : "2025-01-15T00:00:00Z",
+    "validUntil" : "2026-01-15T23:59:59Z",
+    "serialNumber" : "AD893BAFA68B0B7FB7A404F06ECAF9A"
+  }, {
+    "subject" : "CN=DigiCert Global G3 TLS ECC SHA384 2020 CA1, O=DigiCert Inc, C=US",
+    "issuer" : "CN=DigiCert Global Root G3, OU=www.digicert.com, O=DigiCert Inc, C=US",
+    "validFrom" : "2021-04-14T00:00:00Z",
+    "validUntil" : "2031-04-13T23:59:59Z",
+    "serialNumber" : "B00E92D4D6D731FCA3059C7CB1E1886"
+  } ]
+}
