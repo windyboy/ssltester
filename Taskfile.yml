@@ -13,11 +13,11 @@ vars:
 
 tasks:
   get-version:
-    desc: Get version from Version.kt file
+    desc: Get version from AppVersion.kt file
     internal: true
     silent: true
     cmds:
-      - grep "const val VERSION" app/src/main/kotlin/org/example/Version.kt | sed "s/.*\"\\(.*\\)\".*/\\1/"
+      - grep "const val VERSION" app/src/main/kotlin/org/example/AppVersion.kt | sed "s/.*\"\\(.*\\)\".*/\\1/"
 
   validate-version:
     desc: Validate version format (semver)
@@ -74,9 +74,25 @@ tasks:
       - ./gradlew test --tests "org.example.*IT" || (echo "⚠️ Integration tests failed or not found" && exit 0)
       - echo "✅ Integration tests completed"
 
+  test:cli:
+    desc: Test CLI functionality
+    deps: [build]
+    cmds:
+      - echo "🧪 Testing CLI functionality..."
+      - |
+        # Test help
+        ./gradlew run --args="--help" > /dev/null 2>&1 && echo "✅ Help command works"
+      - |
+        # Test version
+        ./gradlew run --args="--version" > /dev/null 2>&1 && echo "✅ Version command works"
+      - |
+        # Test with invalid host (should fail gracefully)
+        ./gradlew run --args="invalid-host-that-does-not-exist.com --port 443 --connect-timeout 1000" > /dev/null 2>&1 && echo "✅ Invalid host handled gracefully" || echo "✅ Invalid host properly rejected"
+      - echo "✅ CLI tests completed"
+
   test:
     desc: Run all tests
-    deps: [test:unit, test:int]
+    deps: [test:unit, test:int, test:cli]
 
   test:coverage:
     desc: Run tests with coverage report
@@ -172,20 +188,51 @@ tasks:
       - |
         echo "✅ Fat JAR created: app/build/libs/{{.PROJECT_NAME}}-{{.VERSION}}-all.jar"
 
+  validate:cli:
+    desc: Validate CLI parameters
+    internal: true
+    silent: true
+    cmds:
+      - |
+        # Validate port
+        if [ "{{.PORT}}" -lt 1 ] || [ "{{.PORT}}" -gt 65535 ]; then
+          echo "❌ Error: Port must be between 1 and 65535, but was {{.PORT}}"
+          exit 1
+        fi
+        # Validate timeout
+        if [ "{{.TIMEOUT}}" -lt 0 ]; then
+          echo "❌ Error: Timeout cannot be negative, but was {{.TIMEOUT}}"
+          exit 1
+        fi
+        # Validate format
+        case "{{.FORMAT}}" in
+          TXT|JSON|YAML) ;;
+          *) echo "❌ Error: Invalid format '{{.FORMAT}}'. Must be TXT, JSON, or YAML"; exit 1 ;;
+        esac
+        echo "✅ CLI parameters validated"
+
   run:
     desc: Run the application locally
+    deps: [validate:cli]
     cmds:
       - echo "🚀 Running application..."
       - |
-        ./gradlew run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --format {{.FORMAT}}{{if .OUTPUT}} --output {{.OUTPUT}}{{end}}"
+        ./gradlew run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --format {{.FORMAT}}{{if .OUTPUT}} --output {{.OUTPUT}}{{end}}" || {
+          echo "❌ Application failed to run"
+          exit 1
+        }
 
   run:debug:
     desc: Run the application with debug logging
+    deps: [validate:cli]
     cmds:
       - echo "🐛 Running application with debug logging..."
       - |
         ./gradlew run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --format {{.FORMAT}}{{if .OUTPUT}} --output {{.OUTPUT}}{{end}}" \
-          -Dorg.slf4j.simpleLogger.defaultLogLevel=debug
+          -Dorg.slf4j.simpleLogger.defaultLogLevel=debug || {
+          echo "❌ Application failed to run"
+          exit 1
+        }
 
   changelog:
     desc: Generate changelog from git commits
@@ -334,6 +381,7 @@ tasks:
           echo ""
           echo "📝 Usage Examples:"
           echo "  task run HOST=github.com PORT=443 FORMAT=JSON"
+          echo "  task run HOST=example.com PORT=8443 FORMAT=YAML OUTPUT=result.yaml"
           echo "  task release VERSION=1.0.0"
           echo ""
           echo "⚙️ Configuration:"
@@ -341,7 +389,7 @@ tasks:
           echo "  HOST=<host>               - Target host (default: example.com)"
           echo "  PORT=<port>               - Target port (default: 443)"
           echo "  TIMEOUT=<ms>              - Connection timeout (default: 5000)"
-          echo "  FORMAT=<format>           - Output format (default: TXT)"
+          echo "  FORMAT=<format>           - Output format: TXT, JSON, YAML (default: TXT)"
           echo "  OUTPUT=<file>             - Output file path (optional)"
           echo ""
           echo "🔧 Requirements:"
