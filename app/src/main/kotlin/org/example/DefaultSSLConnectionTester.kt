@@ -22,10 +22,10 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
 
 /**
- * SSL 连接测试核心实现。
+ * SSL 连接测试默认实现。
  * 负责建立 SSL/TLS 连接并收集连接信息。
  */
-class SSLConnectionTesterImpl {
+class DefaultSSLConnectionTester : SSLConnectionTester {
     /**
      * 测试指定主机和端口的 SSL/TLS 连接。
      * @param host 目标主机
@@ -33,7 +33,7 @@ class SSLConnectionTesterImpl {
      * @param config 测试配置
      * @return 测试结果，成功返回 SSLConnection，失败返回异常
      */
-    suspend fun testConnection(
+    override suspend fun testConnection(
         host: String,
         port: Int,
         config: SSLTestConfig,

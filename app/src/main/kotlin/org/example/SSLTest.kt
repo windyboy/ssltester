@@ -6,7 +6,8 @@ import picocli.CommandLine
 import kotlin.system.exitProcess
 
 /**
- * 项目主入口。负责初始化命令行工具并启动执行。
+ * SSL测试工具主应用程序入口。
+ * 负责初始化命令行工具并启动执行。
  */
 private val logger = KotlinLogging.logger {}
 

@@ -1,7 +1,7 @@
 package org.example.core
 
 import kotlinx.coroutines.runBlocking
-import org.example.SSLConnectionTesterImpl
+import org.example.DefaultSSLConnectionTester
 import org.example.exception.SSLTestException
 import org.example.model.SSLTestConfig
 import kotlin.test.Test
@@ -10,7 +10,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class SSLConnectionTesterTest {
-    private val tester = SSLConnectionTesterImpl()
+    private val tester = DefaultSSLConnectionTester()
 
     @Test
     fun `test connection to invalid host`() {

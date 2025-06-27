@@ -6,9 +6,9 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-// Read version from Version.kt file
-val versionFile = file("src/main/kotlin/org/example/Version.kt")
-val versionRegex = Regex("""const val VERSION = "([^"]+)"""")
+// Read version from AppVersion.kt file
+val versionFile = file("src/main/kotlin/org/example/AppVersion.kt")
+val versionRegex = Regex("""const val VERSION = \"([^\"]+)\"""")
 val versionMatch = versionFile.readText().let { versionRegex.find(it) }
 val projectVersion = versionMatch?.groupValues?.get(1) ?: "0.0.2"
 

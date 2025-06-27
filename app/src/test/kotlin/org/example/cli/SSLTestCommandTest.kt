@@ -192,7 +192,7 @@ class SSLTestCommandTest {
 
         // Should return 0 for successful execution
         // Note: This test may fail if example.com is not accessible
-        // In a real scenario, you'd mock the SSLConnectionTesterImpl
+        // In a real scenario, you'd mock the DefaultSSLConnectionTester
         assertTrue(exitCode in listOf(0, 1)) // 0 for success, 1 for connection failure
     }
 

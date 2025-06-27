@@ -2,8 +2,9 @@ package org.example.cli
 
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
-import org.example.SSLConnectionTesterImpl
-import org.example.Version
+import org.example.AppVersion
+import org.example.DefaultSSLConnectionTester
+import org.example.SSLConnectionTester
 import org.example.formatter.JsonOutputFormatter
 import org.example.formatter.TextOutputFormatter
 import org.example.formatter.YamlOutputFormatter
@@ -37,11 +38,11 @@ class OutputFormatConverter : ITypeConverter<OutputFormat> {
     name = "ssl-test",
     description = ["Test SSL/TLS connections to remote hosts"],
     mixinStandardHelpOptions = true,
-    version = [Version.VERSION],
+    version = [AppVersion.VERSION],
 )
 class SSLTestCommand : Callable<Int> {
     /** SSL 连接测试器实现 */
-    private val sslTester = SSLConnectionTesterImpl()
+    private val sslTester: SSLConnectionTester = DefaultSSLConnectionTester()
 
     /**
      * 目标主机

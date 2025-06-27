@@ -1,7 +1,7 @@
 package org.example.core
 
 import kotlinx.coroutines.runBlocking
-import org.example.SSLConnectionTesterImpl
+import org.example.DefaultSSLConnectionTester
 import org.example.exception.SSLTestException
 import org.example.model.SSLTestConfig
 import org.junit.jupiter.api.Test
@@ -12,8 +12,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class SSLConnectionTesterImplTest {
-    private val tester = SSLConnectionTesterImpl()
+class DefaultSSLConnectionTesterTest {
+    private val tester = DefaultSSLConnectionTester()
 
     @Test
     fun `test connection to invalid host`() {
