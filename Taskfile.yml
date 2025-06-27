@@ -1,413 +1,236 @@
 version: '3'
-vars:
-  VERSION: '{{.VERSION | default "0.0.2"}}'
-  RELEASE_NAME: 'Release v{{.VERSION}}'
-  PROJECT_NAME: 'ssl-test'
-  HOST: '{{.HOST | default "example.com"}}'
-  PORT: '{{.PORT | default "443"}}'
-  TIMEOUT: '{{.TIMEOUT | default "5000"}}'
-  FORMAT: '{{.FORMAT | default "TXT"}}'
-  OUTPUT: '{{.OUTPUT | default ""}}'
-  JAVA_VERSION: '21'
-  KOTLIN_VERSION: '2.1.21'
 
+# ───────────────────────────────
+# Global variables (string-substituted everywhere)
+# ───────────────────────────────
+vars:
+  VERSION:        '{{ .VERSION   | default "0.0.2" }}'
+  PROJECT_NAME:   'ssl-test'
+  HOST:           '{{ .HOST      | default "example.com" }}'
+  PORT:           '{{ .PORT      | default "443" }}'
+  TIMEOUT:        '{{ .TIMEOUT   | default "5000" }}'
+  FORMAT:         '{{ .FORMAT    | default "TXT" }}'
+  OUTPUT:         '{{ .OUTPUT    | default "" }}'
+  JAVA_VERSION:   '21'
+  KOTLIN_VERSION: '2.1.21'
+  GRADLEW:        './gradlew'          # one place to edit if you move/rename the wrapper
+
+# ───────────────────────────────
+# Environment variables exported into every cmd
+# ───────────────────────────────
+env:
+  GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx2G'
+
+# ───────────────────────────────
+# Tasks
+# ───────────────────────────────
 tasks:
-  get-version:
-    desc: Get version from AppVersion.kt file
-    internal: true
-    silent: true
+
+  # --- Bootstrap / Setup ------------------------------------
+  bootstrap:
+    desc: Check and install required tools
     cmds:
-      - grep "const val VERSION" app/src/main/kotlin/org/example/AppVersion.kt | sed "s/.*\"\\(.*\\)\".*/\\1/"
+      - echo '🔧 Checking environment…'
+      - command -v java      >/dev/null 2>&1 || (echo '❌ Java not found!'          && exit 1)
+      - command -v "{{.GRADLEW}}" >/dev/null 2>&1 || (echo '❌ Gradle wrapper missing' && exit 1)
+      - echo '✅ Environment ready'
 
   validate-version:
     desc: Validate version format (semver)
     internal: true
     silent: true
     cmds:
-      - |
-        if ! echo "{{.VERSION}}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$' >/dev/null; then
-          echo "❌ Error: Invalid version format. Must follow semver (e.g., 1.0.0, 1.0.0-alpha.1)"
-          exit 1
-        fi
-        echo "✅ Version {{.VERSION}} is valid"
+      - echo '{{.VERSION}}' | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || (echo '❌ Invalid version format' && exit 1)
+      - echo "✅ Version {{.VERSION}} is valid"
 
+  # --- Clean / Build ----------------------------------------
   clean:
     desc: Clean the project build files
     cmds:
-      - echo "🧹 Cleaning project..."
-      - ./gradlew clean
-      - echo "✅ Clean completed"
+      - echo '🧹 Cleaning project…'
+      - "{{.GRADLEW}} clean"
+      - echo '✅ Clean completed'
 
   compile:
     desc: Compile the project
     deps: [validate-version]
     cmds:
-      - echo "🔨 Compiling project..."
-      - ./gradlew compileKotlin
-      - echo "✅ Compilation completed"
+      - echo '🔨 Compiling project…'
+      - "{{.GRADLEW}} compileKotlin"
+      - echo '✅ Compilation completed'
 
+  build:
+    desc: Build the release artifacts
+    deps: [validate-version, clean]
+    cmds:
+      - echo '🏗️  Building project…'
+      - "{{.GRADLEW}} build --continue"
+      - echo '✅ Build completed'
+
+  "build:fat-jar":
+    desc: Build fat JAR with all dependencies
+    deps: [validate-version, clean]
+    cmds:
+      - echo '📦 Building fat JAR…'
+      - "{{.GRADLEW}} shadowJar --continue"
+      - echo '✅ Fat JAR created successfully'
+
+  # --- Lint / Format ----------------------------------------
   lint:
     desc: Run code linting with ktlint
     cmds:
-      - echo "🔍 Running code linting..."
-      - ./gradlew ktlintCheck || (echo "⚠️ Linting issues found. Run 'task format' to fix them." && exit 1)
-      - echo "✅ Linting passed"
+      - echo '🔍 Running code linting…'
+      - "{{.GRADLEW}} ktlintCheck"
+      - echo '✅ Linting passed'
 
   format:
     desc: Format code with ktlint
     cmds:
-      - echo "🎨 Formatting code..."
-      - ./gradlew ktlintFormat
-      - echo "✅ Code formatting completed"
+      - echo '🎨 Formatting code…'
+      - "{{.GRADLEW}} ktlintFormat"
+      - echo '✅ Code formatting completed'
 
-  test:unit:
+  # --- Testing ----------------------------------------------
+  "test:unit":
     desc: Run unit tests
     cmds:
-      - echo "🧪 Running unit tests..."
-      - ./gradlew test --tests "org.example.*Test"
-      - echo "✅ Unit tests completed"
+      - echo '🧪 Running unit tests…'
+      - "{{.GRADLEW}} test --tests 'org.example.*Test' --continue"
+      - echo '✅ Unit tests completed'
 
-  test:int:
+  "test:int":
     desc: Run integration tests
     cmds:
-      - echo "🔗 Running integration tests..."
-      - ./gradlew test --tests "org.example.*IT" || (echo "⚠️ Integration tests failed or not found" && exit 0)
-      - echo "✅ Integration tests completed"
+      - echo '🔗 Running integration tests…'
+      - |
+        if find app/src/test -name "*IT.kt" -o -name "*IT.java" | grep -q .; then
+          {{.GRADLEW}} test --tests 'org.example.*IT' --continue
+        else
+          echo 'ℹ️  No integration tests found (files ending with IT)'
+        fi
+      - echo '✅ Integration tests completed'
 
-  test:cli:
+  "test:cli":
     desc: Test CLI functionality
-    deps: [build]
     cmds:
-      - echo "🧪 Testing CLI functionality..."
+      - echo '🧪 Testing CLI functionality…'
+      - "{{.GRADLEW}} run --args='--help' >/dev/null 2>&1 && echo '✅ Help command works'"
+      - "{{.GRADLEW}} run --args='--version' >/dev/null 2>&1 && echo '✅ Version command works'"
       - |
-        # Test help
-        ./gradlew run --args="--help" > /dev/null 2>&1 && echo "✅ Help command works"
-      - |
-        # Test version
-        ./gradlew run --args="--version" > /dev/null 2>&1 && echo "✅ Version command works"
-      - |
-        # Test with invalid host (should fail gracefully)
-        ./gradlew run --args="invalid-host-that-does-not-exist.com --port 443 --connect-timeout 1000" > /dev/null 2>&1 && echo "✅ Invalid host handled gracefully" || echo "✅ Invalid host properly rejected"
-      - echo "✅ CLI tests completed"
+        {{.GRADLEW}} run --args='invalid-host-that-does-not-exist.com --port 443 --connect-timeout 1000' >/dev/null 2>&1 \
+          && echo '✅ Invalid host handled gracefully' || echo '✅ Invalid host properly rejected'
+      - echo '✅ CLI tests completed'
 
   test:
     desc: Run all tests
-    deps: [test:unit, test:int, test:cli]
+    deps: ["test:unit", "test:int", "test:cli"]
 
-  test:coverage:
+  "test:coverage":
     desc: Run tests with coverage report
     cmds:
-      - echo "📊 Running tests with coverage..."
-      - cd app && ../gradlew test jacocoTestReport
-      - echo "📈 Coverage report generated in app/build/reports/jacoco/test/html/index.html"
-      - echo "📋 To view coverage in source code, run 'task coverage:show'"
+      - echo '📊 Running tests with coverage…'
+      - "{{.GRADLEW}} clean test jacocoTestReport --continue"
+      - "echo '📈 Coverage report: app/build/reports/jacoco/test/html/index.html'"
 
-  coverage:show:
+  "coverage:show":
     desc: Show test coverage information and open reports
     cmds:
-      - echo "📊 Test Coverage Information"
-      - echo "============================"
-      - cd app && ../gradlew showCoverage
-      - |
-        if command -v open >/dev/null 2>&1; then
-          echo ""
-          echo "🌐 Opening HTML coverage report in browser..."
-          open app/build/reports/jacoco/test/html/index.html
-        elif command -v xdg-open >/dev/null 2>&1; then
-          echo ""
-          echo "🌐 Opening HTML coverage report in browser..."
-          xdg-open app/build/reports/jacoco/test/html/index.html
-        else
-          echo ""
-          echo "📁 HTML report location: app/build/reports/jacoco/test/html/index.html"
-          echo "💡 Open this file in your browser to view coverage in source code"
-        fi
+      - echo '📊 Test Coverage Information'
+      - "{{.GRADLEW}} showCoverage"
+      - "echo '📁 HTML report location: app/build/reports/jacoco/test/html/index.html'"
 
-  coverage:check:
+  "coverage:check":
     desc: Check if test coverage meets minimum thresholds
     cmds:
-      - echo "🔍 Checking coverage thresholds..."
-      - cd app && ../gradlew checkCoverage
-      - echo "✅ Coverage verification completed"
+      - echo '🔍 Checking coverage thresholds…'
+      - "{{.GRADLEW}} checkCoverage --continue"
+      - echo '✅ Coverage verification completed'
 
-  coverage:detailed:
-    desc: Generate detailed coverage report with source code highlighting
-    deps: [test:coverage]
-    cmds:
-      - echo "📊 Generating detailed coverage report..."
-      - cd app && ../gradlew jacocoTestReport
-      - |
-        echo "📈 Coverage Summary:"
-        echo "==================="
-        if [ -f app/build/reports/jacoco/test/jacocoTestReport.xml ]; then
-          echo "✅ XML report generated: app/build/reports/jacoco/test/jacocoTestReport.xml"
-        fi
-        if [ -d app/build/reports/jacoco/test/html ]; then
-          echo "✅ HTML report generated: app/build/reports/jacoco/test/html/"
-          echo "📁 Open index.html to view coverage in source code"
-        fi
-        echo ""
-        echo "🎯 Coverage Thresholds:"
-        echo "- Line coverage: 80%"
-        echo "- Branch coverage: 70%"
-        echo ""
-        echo "💡 Run 'task coverage:check' to verify thresholds are met"
+  # --- Pre-commit -------------------------------------------
+  pre-commit:
+    desc: Run checks before commit
+    deps: [lint, format, "test:unit"]
 
-  coverage:open:
-    desc: Open coverage report in default browser
-    cmds:
-      - |
-        if [ ! -f app/build/reports/jacoco/test/html/index.html ]; then
-          echo "❌ Coverage report not found. Run 'task test:coverage' first."
-          exit 1
-        fi
-      - |
-        if command -v open >/dev/null 2>&1; then
-          open app/build/reports/jacoco/test/html/index.html
-        elif command -v xdg-open >/dev/null 2>&1; then
-          xdg-open app/build/reports/jacoco/test/html/index.html
-        else
-          echo "❌ Cannot open browser automatically."
-          echo "📁 Please open: app/build/reports/jacoco/test/html/index.html"
-        fi
-
-  build:
-    desc: Build the release artifacts
-    deps: [validate-version, clean, test]
-    cmds:
-      - echo "🏗️ Building project..."
-      - ./gradlew build
-      - echo "✅ Build completed"
-
-  build:fat-jar:
-    desc: Build fat JAR with all dependencies
-    deps: [validate-version, clean, test]
-    cmds:
-      - echo "📦 Building fat JAR..."
-      - ./gradlew shadowJar
-      - |
-        echo "✅ Fat JAR created: app/build/libs/{{.PROJECT_NAME}}-{{.VERSION}}-all.jar"
-
-  validate:cli:
-    desc: Validate CLI parameters
-    internal: true
-    silent: true
-    cmds:
-      - |
-        # Validate port
-        if [ "{{.PORT}}" -lt 1 ] || [ "{{.PORT}}" -gt 65535 ]; then
-          echo "❌ Error: Port must be between 1 and 65535, but was {{.PORT}}"
-          exit 1
-        fi
-        # Validate timeout
-        if [ "{{.TIMEOUT}}" -lt 0 ]; then
-          echo "❌ Error: Timeout cannot be negative, but was {{.TIMEOUT}}"
-          exit 1
-        fi
-        # Validate format
-        case "{{.FORMAT}}" in
-          TXT|JSON|YAML) ;;
-          *) echo "❌ Error: Invalid format '{{.FORMAT}}'. Must be TXT, JSON, or YAML"; exit 1 ;;
-        esac
-        echo "✅ CLI parameters validated"
-
-  run:
-    desc: Run the application locally
-    deps: [validate:cli]
-    cmds:
-      - echo "🚀 Running application..."
-      - |
-        ./gradlew run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --format {{.FORMAT}}{{if .OUTPUT}} --output {{.OUTPUT}}{{end}}" || {
-          echo "❌ Application failed to run"
-          exit 1
-        }
-
-  run:debug:
-    desc: Run the application with debug logging
-    deps: [validate:cli]
-    cmds:
-      - echo "🐛 Running application with debug logging..."
-      - |
-        ./gradlew run --args="{{.HOST}} --port {{.PORT}} --connect-timeout {{.TIMEOUT}} --format {{.FORMAT}}{{if .OUTPUT}} --output {{.OUTPUT}}{{end}}" \
-          -Dorg.slf4j.simpleLogger.defaultLogLevel=debug || {
-          echo "❌ Application failed to run"
-          exit 1
-        }
-
+  # --- Changelog / Docs / Release ---------------------------
   changelog:
     desc: Generate changelog from git commits
     cmds:
-      - echo "📝 Generating changelog..."
+      - echo '📝 Generating changelog…'
       - |
-        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD")
-        echo "## [{{.VERSION}}] - $(date +%Y-%m-%d)" > CHANGELOG.md.tmp
-        echo "" >> CHANGELOG.md.tmp
-        git log $PREV_TAG..HEAD --pretty=format:"* %s" --no-merges >> CHANGELOG.md.tmp
-        echo "" >> CHANGELOG.md.tmp
-        echo "" >> CHANGELOG.md.tmp
-        if [ -f CHANGELOG.md ]; then
-          cat CHANGELOG.md >> CHANGELOG.md.tmp
-        fi
-        mv CHANGELOG.md.tmp CHANGELOG.md
-      - echo "✅ Changelog generated"
+        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo HEAD)
+        {
+          echo "## [{{.VERSION}}] - $(date +%F)"
+          git log "$PREV_TAG"..HEAD --pretty=format:'* %s' --no-merges
+          [ -f CHANGELOG.md ] && cat CHANGELOG.md
+        } > CHANGELOG.md.tmp
+      - mv CHANGELOG.md.tmp CHANGELOG.md
+      - echo '✅ Changelog generated'
 
-  docs:generate:
+  "docs:generate":
     desc: Generate project documentation
     cmds:
-      - echo "📚 Generating documentation..."
-      - ./gradlew dokkaHtml
-      - echo "✅ Documentation generated in app/build/dokka/html/"
+      - echo '📚 Generating documentation…'
+      - "{{.GRADLEW}} dokkaHtml"
+      - "echo '✅ Documentation: app/build/dokka/html/'"
 
   github-release:
     desc: Create GitHub release with artifacts
-    deps: [validate-version, build:fat-jar, changelog]
+    deps: [validate-version, "build:fat-jar", changelog]
     cmds:
-      - |
-        echo "🔐 Checking GitHub CLI authentication..."
-        if ! gh auth status >/dev/null 2>&1; then
-          echo "❌ Error: GitHub CLI not authenticated. Please run 'gh auth login' first"
-          exit 1
-        fi
-      - |
-        echo "🔍 Verifying git repository..."
-        if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-          echo "❌ Error: Not a git repository. Please initialize git first."
-          exit 1
-        fi
-        REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
-        if [ -z "$REMOTE_URL" ]; then
-          echo "❌ Error: No git remote 'origin' found. Please add a remote first."
-          exit 1
-        fi
-        echo "✅ Repository URL: $REMOTE_URL"
-      - |
-        echo "🏷️ Creating git tag v{{.VERSION}}..."
-        git tag -a "v{{.VERSION}}" -m "{{.RELEASE_NAME}}"
-        git push origin "v{{.VERSION}}"
-      - |
-        echo "📦 Creating GitHub release..."
-        CHANGELOG=$(awk '/^## \[{{.VERSION}}\]/{p=1;print;next} /^## /{p=0} p' CHANGELOG.md)
-        gh release create "v{{.VERSION}}" \
-          --title "{{.RELEASE_NAME}}" \
-          --notes "$CHANGELOG" \
-          ./app/build/libs/{{.PROJECT_NAME}}-{{.VERSION}}*.jar
-      - |
-        echo "✅ GitHub release created: v{{.VERSION}}"
+      - echo '🔐 Checking GitHub CLI authentication…'
+      - gh auth status || (echo '❌ GitHub CLI not authenticated' && exit 1)
+      - echo '🔍 Verifying git repository…'
+      - git rev-parse --is-inside-work-tree || (echo '❌ Not a git repository' && exit 1)
+      - echo "🏷️  Creating git tag v{{.VERSION}}…"
+      - git tag -a "v{{.VERSION}}" -m "Release v{{.VERSION}}"
+      - git push origin "v{{.VERSION}}"
+      - echo '📦 Creating GitHub release…'
+      - gh release create "v{{.VERSION}}" --title "Release v{{.VERSION}}" ./app/build/libs/ssl-test-{{.VERSION}}*.jar
+      - echo '✅ GitHub release created successfully'
 
   check:
     desc: Run all quality checks (lint, test, build)
     deps: [lint, test, build]
-    cmds:
-      - echo "✅ All quality checks passed"
 
-  security:scan:
+  "security:scan":
     desc: Run security vulnerability scan
     cmds:
-      - echo "🔒 Running security scan..."
-      - ./gradlew dependencyCheckAnalyze || echo "⚠️ Dependency check not configured"
-      - echo "✅ Security scan completed"
+      - echo '🔒 Running security scan…'
+      - "{{.GRADLEW}} dependencyCheckAnalyze || echo '⚠️  dependency-check plugin not configured'"
+      - echo '✅ Security scan completed'
 
-  dependencies:update:
+  "dependencies:update":
     desc: Check for dependency updates
     cmds:
-      - echo "📦 Checking for dependency updates..."
-      - ./gradlew dependencyUpdates || echo "⚠️ Dependency updates plugin not configured"
-      - echo "✅ Dependency check completed"
+      - echo '📦 Checking for dependency updates…'
+      - "{{.GRADLEW}} dependencyUpdates || echo '⚠️  Versions-plugin not configured'"
+      - echo '✅ Dependency check completed'
 
-  dependencies:report:
+  "dependencies:report":
     desc: Generate dependency report
     cmds:
-      - echo "📊 Generating dependency report..."
-      - ./gradlew dependencies --configuration runtimeClasspath
-      - echo "✅ Dependency report generated"
+      - echo '📊 Generating dependency report…'
+      - "{{.GRADLEW}} dependencies --configuration runtimeClasspath"
+      - echo '✅ Dependency report generated'
 
   dev:
     desc: Development workflow (clean, compile, test)
     deps: [clean, compile, test]
-    cmds:
-      - echo "✅ Development workflow completed"
 
   ci:
     desc: Continuous integration workflow
-    deps: [check, test:coverage, security:scan]
-    cmds:
-      - echo "✅ CI workflow completed"
+    deps: [check, "test:coverage", "security:scan"]
 
   release:
     desc: Complete release workflow
-    deps: [ci, build:fat-jar, github-release]
-    cmds:
-      - echo "🎉 Release v{{.VERSION}} completed successfully!"
+    deps: [ci, "build:fat-jar", github-release]
 
   help:
-    desc: Show detailed help message
+    desc: Show help message
     cmds:
-      - |
-          echo "🚀 SSL Test Tool - Task Runner"
-          echo "================================"
-          echo ""
-          echo "📋 Available Tasks:"
-          echo "  Development:"
-          echo "    task clean              - Clean build files"
-          echo "    task compile            - Compile project"
-          echo "    task lint               - Run code linting"
-          echo "    task format             - Format code"
-          echo "    task dev                - Development workflow"
-          echo ""
-          echo "  Testing:"
-          echo "    task test               - Run all tests"
-          echo "    task test:unit          - Run unit tests only"
-          echo "    task test:int           - Run integration tests only"
-          echo "    task test:coverage      - Run tests with coverage"
-          echo ""
-          echo "  Building:"
-          echo "    task build              - Build project"
-          echo "    task build:fat-jar      - Build fat JAR"
-          echo "    task check              - Run all quality checks"
-          echo ""
-          echo "  Release:"
-          echo "    task changelog          - Generate changelog"
-          echo "    task github-release     - Create GitHub release"
-          echo "    task release            - Complete release workflow"
-          echo ""
-          echo "  Application:"
-          echo "    task run                - Run application"
-          echo "    task run:debug          - Run with debug logging"
-          echo ""
-          echo "  Quality:"
-          echo "    task ci                 - CI workflow"
-          echo "    task security:scan      - Security vulnerability scan"
-          echo "    task dependencies:update - Check for updates"
-          echo ""
-          echo "📝 Usage Examples:"
-          echo "  task run HOST=github.com PORT=443 FORMAT=JSON"
-          echo "  task run HOST=example.com PORT=8443 FORMAT=YAML OUTPUT=result.yaml"
-          echo "  task release VERSION=1.0.0"
-          echo ""
-          echo "⚙️ Configuration:"
-          echo "  VERSION=<version>         - Version number (semver)"
-          echo "  HOST=<host>               - Target host (default: example.com)"
-          echo "  PORT=<port>               - Target port (default: 443)"
-          echo "  TIMEOUT=<ms>              - Connection timeout (default: 5000)"
-          echo "  FORMAT=<format>           - Output format: TXT, JSON, YAML (default: TXT)"
-          echo "  OUTPUT=<file>             - Output file path (optional)"
-          echo ""
-          echo "🔧 Requirements:"
-          echo "  - Java {{.JAVA_VERSION}} or higher"
-          echo "  - Gradle 8.x or higher"
-          echo "  - GitHub CLI (for release tasks)"
-          echo ""
-          echo "📖 For more information: https://taskfile.dev"
-
-  version:
-    desc: Show current version
-    cmds:
-      - |
-        echo "Current version: {{.VERSION}}"
-        echo "Project: {{.PROJECT_NAME}}"
-        echo "Kotlin: {{.KOTLIN_VERSION}}"
-        echo "Java: {{.JAVA_VERSION}}"
+      - echo 'Run `task --list` to see all available tasks.'
+      - echo 'See README.md for more details.'
 
   default:
-    desc: Show help message
+    desc: Show help message (alias for help)
     deps: [help]
