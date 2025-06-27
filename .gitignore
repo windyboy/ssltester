@@ -72,4 +72,6 @@ gen/
 kls_database.db
 
 app/test_output.txt
+app/test_output.json
+
 
