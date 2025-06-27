@@ -70,3 +70,6 @@ gen/
 
 # keep the database file
 kls_database.db
+
+app/test_output.txt
+
