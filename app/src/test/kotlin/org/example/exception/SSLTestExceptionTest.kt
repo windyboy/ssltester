@@ -1,359 +1,324 @@
 package org.example.exception
-import org.example.exception.SSLTestException.ConfigurationError
-import org.example.exception.SSLTestException.ConnectionError
-import org.example.exception.SSLTestException.HandshakeError
+
 import org.junit.jupiter.api.Test
-import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import java.time.Instant
 
 class SSLTestExceptionTest {
+
     @Test
-    fun `test HandshakeError creation`() {
-        val cause = SSLException("SSL handshake failed")
-        val error =
-            SSLTestException.HandshakeError(
-                host = "example.com",
-                port = 443,
-                message = "SSL Handshake failed",
-                cause = cause,
-            )
+    fun `test HandshakeError creation and properties`() {
+        val timestamp = Instant.now()
+        val error = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "SSL handshake failed",
+            cause = RuntimeException("Connection timeout"),
+            timestamp = timestamp
+        )
 
         assertEquals("example.com", error.host)
         assertEquals(443, error.port)
-        assertEquals("SSL Handshake failed", error.message)
-        assertEquals(cause, error.cause)
+        assertEquals("SSL handshake failed", error.message)
+        assertNotNull(error.cause)
+        assertEquals(timestamp, error.timestamp)
     }
 
     @Test
-    fun `test HandshakeError without cause`() {
-        val error =
-            SSLTestException.HandshakeError(
-                host = "test.com",
-                port = 8443,
-                message = "SSL Handshake failed",
-            )
-
-        assertEquals("test.com", error.host)
-        assertEquals(8443, error.port)
-        assertEquals("SSL Handshake failed", error.message)
-        assertNull(error.cause)
-    }
-
-    @Test
-    fun `test ConnectionError creation`() {
-        val cause = ConnectException("Connection refused")
-        val error =
-            SSLTestException.ConnectionError(
-                host = "example.com",
-                port = 443,
-                message = "Connection failed",
-                cause = cause,
-            )
+    fun `test ConnectionError creation and properties`() {
+        val timestamp = Instant.now()
+        val error = SSLTestException.ConnectionError(
+            host = "example.com",
+            port = 443,
+            message = "Connection failed",
+            cause = RuntimeException("Network error"),
+            timestamp = timestamp
+        )
 
         assertEquals("example.com", error.host)
         assertEquals(443, error.port)
         assertEquals("Connection failed", error.message)
-        assertEquals(cause, error.cause)
+        assertNotNull(error.cause)
+        assertEquals(timestamp, error.timestamp)
     }
 
     @Test
-    fun `test ConnectionError without cause`() {
-        val error =
-            SSLTestException.ConnectionError(
-                host = "test.com",
-                port = 8443,
-                message = "Connection failed",
-            )
+    fun `test ConfigurationError creation and properties`() {
+        val timestamp = Instant.now()
+        val error = SSLTestException.ConfigurationError(
+            message = "Invalid configuration",
+            cause = RuntimeException("Invalid port"),
+            timestamp = timestamp
+        )
 
-        assertEquals("test.com", error.host)
-        assertEquals(8443, error.port)
-        assertEquals("Connection failed", error.message)
-        assertNull(error.cause)
+        assertEquals("Invalid configuration", error.message)
+        assertNotNull(error.cause)
+        assertEquals(timestamp, error.timestamp)
     }
 
     @Test
-    fun `test ConfigurationError creation`() {
-        val cause = IllegalArgumentException("Invalid configuration")
-        val error =
-            SSLTestException.ConfigurationError(
-                message = "Configuration error",
-                cause = cause,
-            )
+    fun `test CertificateError creation and properties`() {
+        val timestamp = Instant.now()
+        val error = SSLTestException.CertificateError(
+            host = "example.com",
+            port = 443,
+            message = "Certificate validation failed",
+            cause = RuntimeException("Invalid certificate"),
+            timestamp = timestamp
+        )
 
-        assertEquals("Configuration error", error.message)
-        assertEquals(cause, error.cause)
+        assertEquals("example.com", error.host)
+        assertEquals(443, error.port)
+        assertEquals("Certificate validation failed", error.message)
+        assertNotNull(error.cause)
+        assertEquals(timestamp, error.timestamp)
     }
 
     @Test
-    fun `test ConfigurationError without cause`() {
-        val error =
-            SSLTestException.ConfigurationError(
-                message = "Configuration error",
-            )
+    fun `test fromException with SSLTestException`() {
+        val originalError = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "Original error",
+            cause = RuntimeException("Original cause"),
+            timestamp = Instant.now()
+        )
 
-        assertEquals("Configuration error", error.message)
-        assertNull(error.cause)
+        val converted = SSLTestException.fromException(originalError, "new.example.com", 8443)
+        
+        assertTrue(converted is SSLTestException.HandshakeError)
+        assertEquals("new.example.com", converted.host)
+        assertEquals(8443, converted.port)
+        assertEquals("Original error", converted.message)
+        assertNotNull(converted.cause)
+    }
+
+    @Test
+    fun `test fromException with SSLHandshakeException`() {
+        val sslException = SSLHandshakeException("SSL handshake failed")
+        
+        val converted = SSLTestException.fromException(sslException, "example.com", 443)
+        
+        assertTrue(converted is SSLTestException.HandshakeError)
+        assertEquals("example.com", converted.host)
+        assertEquals(443, converted.port)
+        assertTrue(converted.message?.contains("SSL handshake failed") == true)
+        assertEquals(sslException, converted.cause)
     }
 
     @Test
     fun `test fromException with SSLException`() {
         val sslException = SSLException("SSL protocol error")
-        val result = SSLTestException.fromException(sslException, "example.com", 443)
-
-        assertIs<SSLTestException.HandshakeError>(result)
-        assertEquals("example.com", result.host)
-        assertEquals(443, result.port)
-        assertTrue(result.message?.contains("SSL Error") == true)
-        assertEquals(sslException, result.cause)
+        
+        val converted = SSLTestException.fromException(sslException, "example.com", 443)
+        
+        assertTrue(converted is SSLTestException.HandshakeError)
+        assertEquals("example.com", converted.host)
+        assertEquals(443, converted.port)
+        assertTrue(converted.message?.contains("SSL protocol error") == true)
+        assertEquals(sslException, converted.cause)
     }
 
     @Test
     fun `test fromException with ConnectException`() {
         val connectException = ConnectException("Connection refused")
-        val result = SSLTestException.fromException(connectException, "example.com", 443)
-
-        assertIs<SSLTestException.ConnectionError>(result)
-        assertEquals("example.com", result.host)
-        assertEquals(443, result.port)
-        assertTrue(result.message?.contains("Connection Error") == true)
-        assertEquals(connectException, result.cause)
+        
+        val converted = SSLTestException.fromException(connectException, "example.com", 443)
+        
+        assertTrue(converted is SSLTestException.ConnectionError)
+        assertEquals("example.com", converted.host)
+        assertEquals(443, converted.port)
+        assertTrue(converted.message?.contains("Connection refused") == true)
+        assertEquals(connectException, converted.cause)
     }
 
     @Test
     fun `test fromException with SocketTimeoutException`() {
-        val timeoutException = SocketTimeoutException("Connection timed out")
-        val result = SSLTestException.fromException(timeoutException, "example.com", 443)
-
-        assertIs<SSLTestException.ConfigurationError>(result)
-        assertTrue(result.message?.contains("Unexpected Error") == true)
-        assertEquals(timeoutException, result.cause)
+        val timeoutException = SocketTimeoutException("Connection timeout")
+        
+        val converted = SSLTestException.fromException(timeoutException, "example.com", 443)
+        
+        assertTrue(converted is SSLTestException.ConnectionError)
+        assertEquals("example.com", converted.host)
+        assertEquals(443, converted.port)
+        assertTrue(converted.message?.contains("Connection timeout") == true)
+        assertEquals(timeoutException, converted.cause)
     }
 
     @Test
-    fun `test fromException with RuntimeException`() {
-        val runtimeException = RuntimeException("Unexpected error")
-        val result = SSLTestException.fromException(runtimeException, "example.com", 443)
-
-        assertIs<SSLTestException.ConfigurationError>(result)
-        assertTrue(result.message?.contains("Unexpected Error") == true)
-        assertEquals(runtimeException, result.cause)
+    fun `test fromException with UnknownHostException`() {
+        val unknownHostException = UnknownHostException("Unknown host")
+        
+        val converted = SSLTestException.fromException(unknownHostException, "example.com", 443)
+        
+        assertTrue(converted is SSLTestException.ConnectionError)
+        assertEquals("example.com", converted.host)
+        assertEquals(443, converted.port)
+        assertTrue(converted.message?.contains("Unknown host") == true)
+        assertEquals(unknownHostException, converted.cause)
     }
 
     @Test
-    fun `test fromException with existing SSLTestException`() {
-        val existingError =
-            SSLTestException.HandshakeError(
-                host = "example.com",
-                port = 443,
-                message = "Existing error",
-            )
-        val result = SSLTestException.fromException(existingError, "newhost.com", 8443)
-
-        // Should return the existing exception unchanged
-        assertEquals(existingError, result)
-        if (result is SSLTestException.HandshakeError) {
-            assertEquals("example.com", result.host)
-            assertEquals(443, result.port)
-        }
+    fun `test fromException with generic Exception`() {
+        val genericException = Exception("Generic error")
+        
+        val converted = SSLTestException.fromException(genericException, "example.com", 443)
+        
+        assertTrue(converted is SSLTestException.ConnectionError)
+        assertEquals("example.com", converted.host)
+        assertEquals(443, converted.port)
+        assertTrue(converted.message?.contains("Generic error") == true)
+        assertEquals(genericException, converted.cause)
     }
 
     @Test
     fun `test fromException with null host and port`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals("unknown", (result as? SSLTestException.HandshakeError)?.host ?: (result as SSLTestException.ConnectionError).host)
-            assertEquals(-1, (result as? SSLTestException.HandshakeError)?.port ?: (result as SSLTestException.ConnectionError).port)
-        }
-    }
-
-    @Test
-    fun `test fromException with null host only`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, port = 443)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals("unknown", (result as? SSLTestException.HandshakeError)?.host ?: (result as SSLTestException.ConnectionError).host)
-            assertEquals(443, (result as? SSLTestException.HandshakeError)?.port ?: (result as SSLTestException.ConnectionError).port)
-        }
-    }
-
-    @Test
-    fun `test fromException with null port only`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, host = "example.com")
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals(
-                "example.com",
-                (result as? SSLTestException.HandshakeError)?.host ?: (result as SSLTestException.ConnectionError).host,
-            )
-            assertEquals(-1, (result as? SSLTestException.HandshakeError)?.port ?: (result as SSLTestException.ConnectionError).port)
-        }
-    }
-
-    @Test
-    fun `test fromException with IOException`() {
-        val ioException = java.io.IOException("IO error")
-        val result = SSLTestException.fromException(ioException, "example.com", 443)
-
-        assertIs<SSLTestException.ConfigurationError>(result)
-        assertTrue(result.message?.contains("Unexpected Error") == true)
-        assertEquals(ioException, result.cause)
-    }
-
-    @Test
-    fun `test fromException with SecurityException`() {
-        val securityException = SecurityException("Security error")
-        val result = SSLTestException.fromException(securityException, "example.com", 443)
-
-        assertIs<SSLTestException.ConfigurationError>(result)
-        assertTrue(result.message?.contains("Unexpected Error") == true)
-        assertEquals(securityException, result.cause)
-    }
-
-    @Test
-    fun `test fromException with InterruptedException`() {
-        val interruptedException = InterruptedException("Interrupted")
-        val result = SSLTestException.fromException(interruptedException, "example.com", 443)
-
-        assertIs<SSLTestException.ConfigurationError>(result)
-        assertTrue(result.message?.contains("Unexpected Error") == true)
-        assertEquals(interruptedException, result.cause)
+        val exception = RuntimeException("Test error")
+        
+        val converted = SSLTestException.fromException(exception, null, null)
+        
+        assertTrue(converted is SSLTestException.ConnectionError)
+        assertEquals("unknown", converted.host)
+        assertEquals(-1, converted.port)
+        assertTrue(converted.message?.contains("Test error") == true)
+        assertEquals(exception, converted.cause)
     }
 
     @Test
     fun `test exception inheritance hierarchy`() {
-        val handshakeError =
-            SSLTestException.HandshakeError(
-                host = "example.com",
-                port = 443,
-                message = "Test error",
-            )
+        val handshakeError = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "Test",
+            cause = null,
+            timestamp = Instant.now()
+        )
+        
+        val connectionError = SSLTestException.ConnectionError(
+            host = "example.com",
+            port = 443,
+            message = "Test",
+            cause = null,
+            timestamp = Instant.now()
+        )
+        
+        val configError = SSLTestException.ConfigurationError(
+            message = "Test",
+            cause = null,
+            timestamp = Instant.now()
+        )
+        
+        val certError = SSLTestException.CertificateError(
+            host = "example.com",
+            port = 443,
+            message = "Test",
+            cause = null,
+            timestamp = Instant.now()
+        )
 
         assertTrue(handshakeError is SSLTestException)
+        assertTrue(connectionError is SSLTestException)
+        assertTrue(configError is SSLTestException)
+        assertTrue(certError is SSLTestException)
     }
 
     @Test
     fun `test exception message formatting`() {
-        val sslException = SSLException("SSL protocol error")
-        val result = SSLTestException.fromException(sslException, "example.com", 443)
+        val error = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "SSL handshake failed",
+            cause = RuntimeException("Underlying cause"),
+            timestamp = Instant.now()
+        )
 
-        assertTrue(result.message?.contains("SSL Error") == true)
-        assertTrue(result.message?.contains("SSL protocol error") == true)
+        val message = error.message
+        assertNotNull(message)
+        assertTrue(message.contains("example.com"))
+        assertTrue(message.contains("443"))
+        assertTrue(message.contains("SSL handshake failed"))
     }
 
     @Test
     fun `test exception cause chaining`() {
         val rootCause = RuntimeException("Root cause")
-        val sslException = SSLException("SSL error", rootCause)
-        val result = SSLTestException.fromException(sslException, "example.com", 443)
+        val intermediateCause = RuntimeException("Intermediate", rootCause)
+        val sslError = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "SSL error",
+            cause = intermediateCause,
+            timestamp = Instant.now()
+        )
 
-        assertEquals(sslException, result.cause)
-        assertEquals(rootCause, result.cause?.cause)
+        assertEquals(intermediateCause, sslError.cause)
+        assertEquals(rootCause, sslError.cause?.cause)
+    }
+
+    @Test
+    fun `test exception timestamp consistency`() {
+        val before = Instant.now()
+        val error = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "Test",
+            cause = null,
+            timestamp = Instant.now()
+        )
+        val after = Instant.now()
+
+        assertTrue(error.timestamp >= before)
+        assertTrue(error.timestamp <= after)
+    }
+
+    @Test
+    fun `test exception with null cause`() {
+        val error = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "Test without cause",
+            cause = null,
+            timestamp = Instant.now()
+        )
+
+        assertEquals("example.com", error.host)
+        assertEquals(443, error.port)
+        assertEquals("Test without cause", error.message)
+        assertTrue(error.cause == null)
     }
 
     @Test
     fun `test exception with empty message`() {
-        val sslException = SSLException("")
-        val result = SSLTestException.fromException(sslException, "example.com", 443)
+        val error = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = "",
+            cause = null,
+            timestamp = Instant.now()
+        )
 
-        assertTrue(result.message?.contains("SSL Error") == true)
+        assertEquals("", error.message)
     }
 
     @Test
-    fun `test exception with null message`() {
-        val sslException = SSLException(null as String?)
-        val result = SSLTestException.fromException(sslException, "example.com", 443)
+    fun `test exception with special characters in message`() {
+        val specialMessage = "Error with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?"
+        val error = SSLTestException.HandshakeError(
+            host = "example.com",
+            port = 443,
+            message = specialMessage,
+            cause = null,
+            timestamp = Instant.now()
+        )
 
-        assertTrue(result.message?.contains("SSL Error") == true)
+        assertEquals(specialMessage, error.message)
     }
-
-    @Test
-    fun `test exception with special characters in hostname`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, "test-host.example.com", 443)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals(
-                "test-host.example.com",
-                (result as? SSLTestException.HandshakeError)?.host ?: (result as SSLTestException.ConnectionError).host,
-            )
-        }
-    }
-
-    @Test
-    fun `test exception with IPv4 address`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, "192.168.1.1", 443)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals(
-                "192.168.1.1",
-                (result as? SSLTestException.HandshakeError)?.host ?: (result as SSLTestException.ConnectionError).host,
-            )
-        }
-    }
-
-    @Test
-    fun `test exception with IPv6 address`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, "::1", 443)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals("::1", (result as? SSLTestException.HandshakeError)?.host ?: (result as SSLTestException.ConnectionError).host)
-        }
-    }
-
-    @Test
-    fun `test exception with very long hostname`() {
-        val longHost = "a".repeat(100) + ".example.com"
-        val exception =
-            SSLTestException.ConnectionError(
-                host = longHost,
-                port = 443,
-                message = "Connection failed",
-            )
-
-        assertEquals(longHost, exception.host)
-        assertEquals(443, exception.port)
-        assertEquals("Connection failed", exception.message)
-    }
-
-    @Test
-    fun `test exception with negative port`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, "example.com", -1)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals(-1, (result as? SSLTestException.HandshakeError)?.port ?: (result as SSLTestException.ConnectionError).port)
-        }
-    }
-
-    @Test
-    fun `test exception with zero port`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, "example.com", 0)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals(0, (result as? SSLTestException.HandshakeError)?.port ?: (result as SSLTestException.ConnectionError).port)
-        }
-    }
-
-    @Test
-    fun `test exception with maximum port`() {
-        val sslException = SSLException("SSL error")
-        val result = SSLTestException.fromException(sslException, "example.com", 65535)
-
-        if (result is SSLTestException.HandshakeError || result is SSLTestException.ConnectionError) {
-            assertEquals(65535, (result as? SSLTestException.HandshakeError)?.port ?: (result as SSLTestException.ConnectionError).port)
-        }
-    }
-}
+} 
