@@ -268,7 +268,7 @@ dependencyCheck {
     }
 }
 // Task to show security scan results
-tasks.register("security:show") {
+tasks.register("securityShow") {
     dependsOn(tasks.dependencyCheckAnalyze)
     group = "security"
     description = "Show security scan results"
@@ -288,7 +288,7 @@ tasks.register("security:show") {
 }
 
 // Offline security scan task that works without network access
-tasks.register("security:scan:offline") {
+tasks.register("securityScanOffline") {
     group = "security"
     description = "Run security scan using cached data (works offline)"
 
@@ -302,7 +302,7 @@ tasks.register("security:scan:offline") {
 }
 
 // Quick security scan task with minimal network usage
-tasks.register("security:scan:quick") {
+tasks.register("securityScanQuick") {
     group = "security"
     description = "Run quick security scan with minimal network usage"
 
