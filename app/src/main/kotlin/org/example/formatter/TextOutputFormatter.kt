@@ -1,5 +1,7 @@
 package org.example.formatter
 
+import org.example.CertificateValidator
+import org.example.SSLConstants
 import org.example.model.SSLConnection
 import java.security.MessageDigest
 import java.security.cert.X509Certificate
@@ -25,7 +27,7 @@ class TextOutputFormatter {
     private val ansiBgRed = "\u001B[41m"
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-    private val maxLineLength = 80
+    private val maxLineLength = SSLConstants.MAX_LINE_LENGTH
 
     /**
      * 格式化 SSL 连接结果为文本。
@@ -66,6 +68,59 @@ class TextOutputFormatter {
 
                     connection.certificateChain.forEachIndexed { index, cert ->
                         formatCertificate(cert, index)?.let { appendLine(it) }
+                    }
+                }
+
+                // Certificate Validation Results
+                connection.certificateValidation?.let { validation ->
+                    appendLine("\n${ansiBold}${ansiBlue}Certificate Validation$ansiReset")
+                    appendLine("${ansiBlue}${"─".repeat(maxLineLength)}$ansiReset")
+
+                    if (validation.isValid) {
+                        appendLine("${ansiBold}$ansiGreen✓ Certificate is valid$ansiReset")
+                    } else {
+                        appendLine("${ansiBold}$ansiRed✗ Certificate validation failed$ansiReset")
+                    }
+
+                    if (validation.isHostnameValid) {
+                        appendLine("${ansiBold}$ansiGreen✓ Hostname verification passed$ansiReset")
+                    } else {
+                        appendLine("${ansiBold}$ansiRed✗ Hostname verification failed$ansiReset")
+                    }
+
+                    validation.certificateStrength?.let { strength ->
+                        val strengthColor =
+                            when (strength) {
+                                CertificateValidator.CertificateStrength.STRONG -> ansiGreen
+                                CertificateValidator.CertificateStrength.MEDIUM -> ansiYellow
+                                CertificateValidator.CertificateStrength.WEAK -> ansiRed
+                                CertificateValidator.CertificateStrength.UNKNOWN -> ansiYellow
+                            }
+                        appendLine("${ansiBold}Certificate Strength:$ansiReset $strengthColor$strength$ansiReset")
+                    }
+
+                    validation.daysUntilExpiry?.let { days ->
+                        val expiryColor =
+                            when {
+                                days < 0 -> ansiRed
+                                days <= 30 -> ansiYellow
+                                else -> ansiGreen
+                            }
+                        appendLine("${ansiBold}Days until expiry:$ansiReset $expiryColor$days days$ansiReset")
+                    }
+
+                    if (validation.issues.isNotEmpty()) {
+                        appendLine("\n${ansiBold}${ansiRed}Issues:$ansiReset")
+                        validation.issues.forEach { issue ->
+                            appendLine("$ansiRed• $issue$ansiReset")
+                        }
+                    }
+
+                    if (validation.warnings.isNotEmpty()) {
+                        appendLine("\n${ansiBold}${ansiYellow}Warnings:$ansiReset")
+                        validation.warnings.forEach { warning ->
+                            appendLine("$ansiYellow• $warning$ansiReset")
+                        }
                     }
                 }
 
@@ -119,7 +174,7 @@ class TextOutputFormatter {
 
     private fun wrapLongLine(
         text: String,
-        maxLength: Int = maxLineLength - 20,
+        maxLength: Int = SSLConstants.CERTIFICATE_WRAP_LENGTH,
     ): List<String> {
         if (text.length <= maxLength) return listOf(text)
 

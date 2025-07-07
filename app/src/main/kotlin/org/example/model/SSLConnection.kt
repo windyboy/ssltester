@@ -1,5 +1,6 @@
 package org.example.model
 
+import org.example.CertificateValidator
 import java.security.cert.X509Certificate
 import java.time.Duration
 
@@ -12,6 +13,7 @@ import java.time.Duration
  * @property handshakeTime 握手耗时
  * @property isSecure 是否安全
  * @property certificateChain 证书链
+ * @property certificateValidation 证书验证结果
  */
 data class SSLConnection(
     val host: String,
@@ -21,4 +23,5 @@ data class SSLConnection(
     val handshakeTime: Duration,
     val isSecure: Boolean,
     val certificateChain: List<X509Certificate> = emptyList(),
+    val certificateValidation: CertificateValidator.ValidationResult? = null,
 )

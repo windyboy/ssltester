@@ -26,6 +26,8 @@ import javax.net.ssl.TrustManagerFactory
  * 负责建立 SSL/TLS 连接并收集连接信息。
  */
 class DefaultSSLConnectionTester : SSLConnectionTester {
+    private val certificateValidator = CertificateValidator()
+
     /**
      * 测试指定主机和端口的 SSL/TLS 连接。
      * @param host 目标主机
@@ -59,7 +61,7 @@ class DefaultSSLConnectionTester : SSLConnectionTester {
                         ) as SSLSocket
 
                     try {
-                        sslSocket.enabledProtocols = arrayOf("TLSv1.2", "TLSv1.3")
+                        sslSocket.enabledProtocols = SSLConstants.DEFAULT_ENABLED_PROTOCOLS
                         sslSocket.soTimeout = config.connectionTimeout
 
                         withTimeout(config.connectionTimeout.toLong()) {
@@ -75,6 +77,13 @@ class DefaultSSLConnectionTester : SSLConnectionTester {
                                 session.peerCertificates.map { cert -> cert as X509Certificate }
                             }.getOrDefault(emptyList())
 
+                        val certificateValidation =
+                            if (certificates.isNotEmpty()) {
+                                certificateValidator.validateCertificateChain(certificates, host)
+                            } else {
+                                null
+                            }
+
                         SSLConnection(
                             host = host,
                             port = port,
@@ -83,6 +92,7 @@ class DefaultSSLConnectionTester : SSLConnectionTester {
                             handshakeTime = handshakeTime,
                             isSecure = true,
                             certificateChain = certificates,
+                            certificateValidation = certificateValidation,
                         )
                     } catch (e: Exception) {
                         throw when (e) {
@@ -90,14 +100,14 @@ class DefaultSSLConnectionTester : SSLConnectionTester {
                                 SSLTestException.HandshakeError(
                                     host = host,
                                     port = port,
-                                    message = "SSL Handshake failed: ${e.message}",
+                                    message = "${SSLConstants.ERROR_SSL_HANDSHAKE}: ${e.message}",
                                     cause = e,
                                 )
                             is SSLProtocolException ->
                                 SSLTestException.HandshakeError(
                                     host = host,
                                     port = port,
-                                    message = "SSL Protocol error: ${e.message}",
+                                    message = "${SSLConstants.ERROR_SSL_PROTOCOL}: ${e.message}",
                                     cause = e,
                                 )
                             is SocketTimeoutException ->
@@ -125,21 +135,21 @@ class DefaultSSLConnectionTester : SSLConnectionTester {
                             SSLTestException.ConnectionError(
                                 host = host,
                                 port = port,
-                                message = "Unknown host: ${e.message}",
+                                message = "${SSLConstants.ERROR_UNKNOWN_HOST}: ${e.message}",
                                 cause = e,
                             )
                         is SocketTimeoutException ->
                             SSLTestException.ConnectionError(
                                 host = host,
                                 port = port,
-                                message = "Connection timeout",
+                                message = SSLConstants.ERROR_CONNECTION_TIMEOUT,
                                 cause = e,
                             )
                         is IOException ->
                             SSLTestException.ConnectionError(
                                 host = host,
                                 port = port,
-                                message = "Connection failed: ${e.message ?: "Connection refused"}",
+                                message = "${SSLConstants.ERROR_CONNECTION_FAILED}: ${e.message ?: "Connection refused"}",
                                 cause = e,
                             )
                         is SSLTestException -> e
@@ -173,7 +183,7 @@ class DefaultSSLConnectionTester : SSLConnectionTester {
         runCatching {
             val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
             trustManagerFactory.init(null as KeyStore?)
-            val sslContext = SSLContext.getInstance("TLS")
+            val sslContext = SSLContext.getInstance(SSLConstants.DEFAULT_SSL_CONTEXT_PROTOCOL)
             sslContext.init(null, trustManagerFactory.trustManagers, null)
             sslContext
         }

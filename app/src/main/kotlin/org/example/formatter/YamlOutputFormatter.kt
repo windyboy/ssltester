@@ -29,6 +29,17 @@ class YamlOutputFormatter {
                 "cipherSuite" to connection.cipherSuite,
                 "handshakeTimeMs" to connection.handshakeTime.toMillis(),
                 "isSecure" to connection.isSecure,
+                "certificateValidation" to
+                    connection.certificateValidation?.let { validation ->
+                        mapOf(
+                            "isValid" to validation.isValid,
+                            "isHostnameValid" to validation.isHostnameValid,
+                            "certificateStrength" to validation.certificateStrength.name,
+                            "daysUntilExpiry" to validation.daysUntilExpiry,
+                            "issues" to validation.issues,
+                            "warnings" to validation.warnings,
+                        )
+                    },
                 "certificates" to
                     connection.certificateChain.map { cert ->
                         mapOf(

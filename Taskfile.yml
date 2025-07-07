@@ -196,8 +196,43 @@ tasks:
     desc: Run security vulnerability scan
     cmds:
       - echo '🔒 Running security scan…'
-      - "{{.GRADLEW}} dependencyCheckAnalyze || echo '⚠️  dependency-check plugin not configured'"
+      - "{{.GRADLEW}} dependencyCheckAnalyze --continue"
       - echo '✅ Security scan completed'
+
+  "security:scan:offline":
+    desc: Run security scan using cached data (works offline)
+    cmds:
+      - echo '🔒 Running offline security scan…'
+      - "{{.GRADLEW}} security:scan:offline --continue"
+      - echo '✅ Offline security scan completed'
+
+  "security:scan:quick":
+    desc: Run quick security scan with minimal network usage
+    cmds:
+      - echo '🔒 Running quick security scan…'
+      - "{{.GRADLEW}} security:scan:quick --continue"
+      - echo '✅ Quick security scan completed'
+
+  "security:scan:timeout":
+    desc: Run security scan with custom timeout settings
+    cmds:
+      - echo '🔒 Running security scan with timeout…'
+      - "{{.GRADLEW}} security:scan:timeout --continue"
+      - echo '✅ Security scan with timeout completed'
+
+  "security:show":
+    desc: Show security scan results and open reports
+    cmds:
+      - echo '🔒 Security Scan Results'
+      - "{{.GRADLEW}} security:show"
+      - "echo '📁 HTML report location: app/build/reports/dependency-check-report.html'"
+
+  "security:update":
+    desc: Update security vulnerability database
+    cmds:
+      - echo '🔄 Updating security database…'
+      - "{{.GRADLEW}} dependencyCheckUpdate --continue"
+      - echo '✅ Security database updated'
 
   "dependencies:update":
     desc: Check for dependency updates

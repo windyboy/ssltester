@@ -22,6 +22,8 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
     // Add JaCoCo plugin for test coverage
     jacoco
+    // apply the Dependency-Check plugin
+    id("org.owasp.dependencycheck") version "12.1.3"
 }
 
 repositories {
@@ -130,7 +132,6 @@ tasks.test {
             "--add-opens=java.base/java.lang=ALL-UNNAMED",
             "--add-opens=java.base/java.util=ALL-UNNAMED",
             "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
-            "-Xlog:gc*:file=gc.log",
             "-XX:+PrintCommandLineFlags",
             "-Dsun.io.useCanonCaches=false",
             "-XX:+IgnoreUnrecognizedVMOptions",
@@ -257,5 +258,60 @@ tasks.register("checkCoverage") {
 
     doLast {
         println("✅ Coverage thresholds met!")
+    }
+}
+
+// OWASP dependency-check configuration for security scanning
+dependencyCheck {
+    nvd {
+        apiKey = System.getenv("DEPENDENCY_CHECK_NVD_API_KEY") ?: System.getenv("NVD_API_KEY")
+    }
+}
+// Task to show security scan results
+tasks.register("security:show") {
+    dependsOn(tasks.dependencyCheckAnalyze)
+    group = "security"
+    description = "Show security scan results"
+
+    doLast {
+        println("🔒 Security Scan Results")
+        println("=======================")
+        println("HTML Report: build/reports/dependency-check-report.html")
+        println("JSON Report: build/reports/dependency-check-report.json")
+        println("SARIF Report: build/reports/dependency-check-report.sarif")
+        println()
+        println("To view detailed results:")
+        println("1. Open the HTML report in your browser")
+        println("2. Review any vulnerabilities found")
+        println("3. Check the suppression file for false positives")
+    }
+}
+
+// Offline security scan task that works without network access
+tasks.register("security:scan:offline") {
+    group = "security"
+    description = "Run security scan using cached data (works offline)"
+
+    doLast {
+        println("🔒 Running offline security scan…")
+        exec {
+            commandLine("${project.rootDir}/gradlew", "dependencyCheckAnalyze", "--offline", "--continue")
+        }
+        println("✅ Offline security scan completed")
+    }
+}
+
+// Quick security scan task with minimal network usage
+tasks.register("security:scan:quick") {
+    group = "security"
+    description = "Run quick security scan with minimal network usage"
+
+    doLast {
+        println("🔒 Running quick security scan…")
+        exec {
+            commandLine("${project.rootDir}/gradlew", "dependencyCheckAnalyze", "--continue")
+            environment("GRADLE_OPTS", "-Dorg.gradle.jvmargs=-Xmx1G")
+        }
+        println("✅ Quick security scan completed")
     }
 }

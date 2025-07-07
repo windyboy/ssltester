@@ -5,6 +5,7 @@ import mu.KotlinLogging
 import org.example.AppVersion
 import org.example.DefaultSSLConnectionTester
 import org.example.SSLConnectionTester
+import org.example.SSLConstants
 import org.example.formatter.JsonOutputFormatter
 import org.example.formatter.TextOutputFormatter
 import org.example.formatter.YamlOutputFormatter
@@ -62,7 +63,7 @@ class SSLTestCommand : Callable<Int> {
         paramLabel = "<port>",
         arity = "0..1",
     )
-    var port: Int = 443
+    var port: Int = SSLConstants.DEFAULT_PORT
 
     /**
      * 连接超时时间（毫秒），默认 5000
@@ -73,7 +74,7 @@ class SSLTestCommand : Callable<Int> {
         paramLabel = "<connectionTimeout>",
         arity = "0..1",
     )
-    var connectionTimeout: Int = 5000
+    var connectionTimeout: Int = SSLConstants.DEFAULT_TIMEOUT
 
     /**
      * 输出格式，支持 TXT/JSON/YAML
@@ -101,13 +102,13 @@ class SSLTestCommand : Callable<Int> {
     override fun call(): Int =
         runBlocking {
             // Manual validation for port and timeout
-            if (port !in 1..65535) {
-                System.err.println("Error: Port must be between 1 and 65535, but was $port")
-                return@runBlocking 2
+            if (port !in SSLConstants.MIN_PORT..SSLConstants.MAX_PORT) {
+                System.err.println("Error: ${SSLConstants.ERROR_INVALID_PORT}, but was $port")
+                return@runBlocking SSLConstants.EXIT_INVALID_PARAMETERS
             }
             if (connectionTimeout < 0) {
-                System.err.println("Error: Timeout cannot be negative, but was $connectionTimeout")
-                return@runBlocking 2
+                System.err.println("Error: ${SSLConstants.ERROR_INVALID_TIMEOUT}, but was $connectionTimeout")
+                return@runBlocking SSLConstants.EXIT_INVALID_PARAMETERS
             }
             try {
                 logger.info { "Testing SSL connection to $host:$port" }
@@ -149,13 +150,13 @@ class SSLTestCommand : Callable<Int> {
                             )
                         val formatter = TextOutputFormatter()
                         System.err.println(formatter.format(failedConnection))
-                        return@runBlocking 1
+                        return@runBlocking SSLConstants.EXIT_CONNECTION_ERROR
                     }
 
-                0
+                SSLConstants.EXIT_SUCCESS
             } catch (e: Exception) {
                 logger.error(e) { "Command execution failed" }
-                1
+                SSLConstants.EXIT_CONNECTION_ERROR
             }
         }
 }
