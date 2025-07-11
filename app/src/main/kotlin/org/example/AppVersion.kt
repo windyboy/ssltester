@@ -5,7 +5,7 @@ package org.example
  */
 object AppVersion {
     /** 当前版本号 */
-    const val VERSION = "0.0.2"
+    const val VERSION = "0.0.3"
 
     /** 项目名称 */
     const val NAME = "ssl-test"

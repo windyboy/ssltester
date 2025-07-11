@@ -39,8 +39,8 @@ class TextOutputFormatter : OutputFormatter {
             sb.appendLine("------------------------------")
             connection.certificateChain.forEachIndexed { index, cert ->
                 sb.appendLine("Certificate ${index + 1}:")
-                sb.appendLine("  Subject: ${cert.subjectDN}")
-                sb.appendLine("  Issuer: ${cert.issuerDN}")
+                sb.appendLine("  Subject: ${cert.subjectX500Principal}")
+                sb.appendLine("  Issuer: ${cert.issuerX500Principal}")
                 sb.appendLine("  Serial Number: ${cert.serialNumber}")
                 sb.appendLine("  Valid From: ${formatDate(cert.notBefore)}")
                 sb.appendLine("  Valid Until: ${formatDate(cert.notAfter)}")

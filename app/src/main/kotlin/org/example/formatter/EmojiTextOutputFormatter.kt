@@ -81,11 +81,11 @@ class EmojiTextOutputFormatter : OutputFormatter {
         connection: SSLConnection,
     ) {
         // Subject
-        val subject = extractCommonName(cert.subjectDN.name) ?: "未知"
+        val subject = extractCommonName(cert.subjectX500Principal.name) ?: "未知"
         sb.append("📋 主题: $subject\n")
 
         // Issuer
-        val issuer = extractCommonName(cert.issuerDN.name) ?: "未知"
+        val issuer = extractCommonName(cert.issuerX500Principal.name) ?: "未知"
         sb.append("🏢 颁发者: $issuer\n")
 
         // Validity Period
@@ -149,10 +149,10 @@ class EmojiTextOutputFormatter : OutputFormatter {
     ) {
         sb.append("📜 证书 $index:\n")
 
-        val subject = extractCommonName(cert.subjectDN.name) ?: "未知"
+        val subject = extractCommonName(cert.subjectX500Principal.name) ?: "未知"
         sb.append("   主题: $subject\n")
 
-        val issuer = extractCommonName(cert.issuerDN.name) ?: "未知"
+        val issuer = extractCommonName(cert.issuerX500Principal.name) ?: "未知"
         sb.append("   颁发者: $issuer\n")
 
         val notBefore = cert.notBefore.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime()

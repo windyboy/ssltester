@@ -220,10 +220,8 @@ class SSLTestExceptionTest {
                 timestamp = Instant.now(),
             )
 
-        assertTrue(handshakeError is SSLTestException)
-        assertTrue(connectionError is SSLTestException)
-        assertTrue(configError is SSLTestException)
-        assertTrue(certError is SSLTestException)
+        // These are always true since they inherit from SSLTestException
+        // No need to check instance type as it's guaranteed by inheritance
     }
 
     @Test
