@@ -145,6 +145,53 @@ tasks:
     desc: Run all quality checks (lint, test, build)
     deps: [lint, test, build]
 
+  # --- Dependency Management ----------------------------------------
+  deps-check:
+    desc: Check for outdated dependencies
+    cmds:
+      - 'echo "🔍 Checking for outdated dependencies…"'
+      - '{{.GRADLEW}} dependencyUpdates'
+      - 'echo "✅ Dependency check completed"'
+
+  deps-update:
+    desc: Update dependencies to latest versions
+    cmds:
+      - 'echo "🔄 Updating dependencies to latest versions…"'
+      - '{{.GRADLEW}} dependencyUpdates'
+      - 'echo "📋 Generated dependency update report at build/dependencyUpdates/report.txt"'
+      - 'echo "💡 Review the report and update gradle/libs.versions.toml manually"'
+
+  deps-update-interactive:
+    desc: Interactive dependency update with prompts
+    cmds:
+      - 'echo "🔄 Interactive dependency update…"'
+      - '{{.GRADLEW}} dependencyUpdates'
+      - 'echo "📋 Dependency update report generated"'
+      - |
+        if [ -f build/dependencyUpdates/report.txt ]; then
+          echo "📄 Current dependency status:"
+          cat build/dependencyUpdates/report.txt
+        fi
+      - 'echo "💡 Please review the report and update gradle/libs.versions.toml manually"'
+
+  deps-update-script:
+    desc: Use the advanced dependency update script
+    cmds:
+      - 'echo "🔄 Running advanced dependency update script…"'
+      - './scripts/update-dependencies.sh'
+
+  deps-update-auto:
+    desc: Automatic dependency update with script
+    cmds:
+      - 'echo "🔄 Running automatic dependency update…"'
+      - './scripts/update-dependencies.sh update'
+
+  deps-check-script:
+    desc: Check dependencies using the script
+    cmds:
+      - 'echo "🔍 Checking dependencies with script…"'
+      - './scripts/update-dependencies.sh check'
+
   # --- Help -----------------------------------------------
   default:
     desc: Show help and available tasks

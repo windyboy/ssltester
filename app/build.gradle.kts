@@ -13,74 +13,43 @@ val versionMatch = versionFile.readText().let { versionRegex.find(it) }
 val projectVersion = versionMatch?.groupValues?.get(1) ?: "0.0.2"
 
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
-    application
-    id("org.jetbrains.kotlin.jvm") version "2.1.21"
-    // shadow - update to new plugin ID and latest stable version
-    id("com.gradleup.shadow") version "8.3.7"
-    // Add ktlint plugin for code formatting
-    id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
-    // Add JaCoCo plugin for test coverage
-    jacoco
+    alias(libs.plugins.application)
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.shadow)
+    alias(libs.plugins.ktlint)
+    jacoco // 仍然用内置id
+    alias(libs.plugins.benmanes)
 }
 
 repositories {
-    // Use Maven Central for resolving dependencies.
     mavenCentral()
 }
 
-// Version catalog for dependencies
-val versions =
-    mapOf(
-        "kotlin" to "2.1.21",
-        "slf4j" to "2.0.13",
-        "logback" to "1.5.14",
-        "jackson" to "2.17.1",
-        "kotlin-logging" to "3.0.5",
-        "coroutines" to "1.8.1",
-        "junit" to "5.11.2",
-        "mockk" to "1.13.9",
-        "bytebuddy" to "1.14.12",
-        "picocli" to "4.7.5",
-        "bouncycastle" to "1.72",
-    )
-
 dependencies {
-    // Dependency Injection
-    // Picocli for command line argument parsing
-    implementation("info.picocli:picocli:${versions["picocli"]}")
-
-    // JSON and YAML support
-    implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")
-    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${versions["jackson"]}")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${versions["jackson"]}")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${versions["jackson"]}")
-
-    // Logging
-    implementation("org.slf4j:slf4j-api:${versions["slf4j"]}")
-    implementation("io.github.microutils:kotlin-logging:${versions["kotlin-logging"]}")
-    implementation("ch.qos.logback:logback-classic:${versions["logback"]}")
-
-    // Kotlin dependencies
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:${versions["kotlin"]}"))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib")
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions["coroutines"]}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${versions["coroutines"]}")
-
-    // Certificate validation libraries
-    implementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
-    implementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
-    implementation("network.oxalis.pkix:pkix-ocsp:2.5.0")
-
-    // Testing
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.junit.jupiter:junit-jupiter:${versions["junit"]}")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.11.2")
-    testImplementation("io.mockk:mockk:${versions["mockk"]}")
-    testImplementation("net.bytebuddy:byte-buddy:${versions["bytebuddy"]}")
-    testImplementation("net.bytebuddy:byte-buddy-agent:${versions["bytebuddy"]}")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${versions["junit"]}")
+    implementation(libs.picocli)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.dataformat.yaml)
+    implementation(libs.jackson.module.kotlin)
+    implementation(libs.jackson.datatype.jsr310)
+    implementation(libs.slf4j.api)
+    implementation(libs.kotlin.logging)
+    implementation(libs.logback.classic)
+    implementation(platform(libs.kotlin.bom))
+    implementation(libs.kotlin.stdlib)
+    implementation(libs.kotlin.reflect)
+    implementation(libs.coroutines.core)
+    implementation(libs.coroutines.jdk8)
+    implementation(libs.bouncycastle.provider)
+    implementation(libs.bouncycastle.pkix)
+    implementation(libs.pkix.ocsp)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.junit.platform.launcher)
+    testImplementation(libs.mockk)
+    testImplementation(libs.byte.buddy)
+    testImplementation(libs.byte.buddy.agent)
+    testRuntimeOnly(libs.junit.jupiter.engine)
 }
 
 // Java configuration
@@ -199,6 +168,31 @@ gradle.projectsEvaluated {
 // JaCoCo configuration for test coverage
 jacoco {
     toolVersion = "0.8.11"
+}
+
+// Dependency updates configuration
+tasks.dependencyUpdates {
+    revision = "release"
+    checkForGradleUpdate = true
+    outputFormatter = "plain"
+    outputDir = "build/dependencyUpdates"
+    reportfileName = "report.txt"
+
+    // 官方推荐的稳定版本过滤方式
+    resolutionStrategy {
+        componentSelection {
+            all {
+                val isNonStable = { version: String ->
+                    val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
+                    val regex = ".*[.\\-](alpha|beta|rc|cr|m|preview|b|ea)[.\\d\\-+]*".toRegex(RegexOption.IGNORE_CASE)
+                    !stableKeyword && regex.containsMatchIn(version)
+                }
+                if (isNonStable(candidate.version) && !isNonStable(currentVersion)) {
+                    reject("Release candidate")
+                }
+            }
+        }
+    }
 }
 
 tasks.jacocoTestReport {

@@ -3,7 +3,7 @@
 
 [versions]
 picocli = "4.7.7"
-jackson = "2.19.1" # For both jackson-databind and jackson-dataformat-yaml
+jackson = "2.18.4" # For both jackson-databind and jackson-dataformat-yaml
 slf4j = "2.0.17"
 logback = "1.5.18"
 junitJupiter = "5.10.0"
@@ -20,9 +20,9 @@ picocli-plugin = "4.7.5"
 bouncycastle = "1.72"
 pkixocsp = "2.5.0"
 junit-platform-launcher = "1.11.2"
-shadow = "8.3.8"
+shadow = "8.3.7"
 ktlint = "12.1.1"
-benmanes = "0.52.0"
+benmanes = "0.51.0"
 jacoco = "0.8.11"
 bytebuddyagent = "1.14.12"
 
