@@ -7,8 +7,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.example.CertificateValidator
 import org.example.SSLConnectionTester
-import org.example.di.ServiceLocatorProvider
-import org.example.di.TestServiceLocator
+import org.example.factory.ComponentFactoryManager
+import org.example.factory.TestComponentFactory
 import org.example.formatter.OutputFormatter
 import org.example.model.OutputFormat
 import org.example.model.SSLConnection
@@ -23,7 +23,7 @@ class SSLTestCommandTest {
     private lateinit var mockSSLTester: SSLConnectionTester
     private lateinit var mockCertValidator: CertificateValidator
     private lateinit var mockFormatter: OutputFormatter
-    private lateinit var testLocator: TestServiceLocator
+    private lateinit var testFactory: TestComponentFactory
 
     @BeforeEach
     fun setUp() {
@@ -35,19 +35,19 @@ class SSLTestCommandTest {
         every { mockFormatter.format(any()) } returns "Mocked output"
         every { mockFormatter.getFileExtension() } returns "txt"
 
-        testLocator =
-            TestServiceLocator(
+        testFactory =
+            TestComponentFactory(
                 sslConnectionTester = mockSSLTester,
                 certificateValidator = mockCertValidator,
                 formatters = mapOf(OutputFormat.TXT to mockFormatter),
             )
 
-        ServiceLocatorProvider.setServiceLocator(testLocator)
+        ComponentFactoryManager.setFactory(testFactory)
     }
 
     @AfterEach
     fun tearDown() {
-        ServiceLocatorProvider.shutdown()
+        ComponentFactoryManager.resetToDefault()
     }
 
     @Test
@@ -136,13 +136,13 @@ class SSLTestCommandTest {
                         every { getFileExtension() } returns "txt"
                     }
                 }
-            val testLocator =
-                TestServiceLocator(
+            val testFactory =
+                TestComponentFactory(
                     sslConnectionTester = mockSSLTester,
                     certificateValidator = mockCertValidator,
                     formatters = allFormatters,
                 )
-            ServiceLocatorProvider.setServiceLocator(testLocator)
+            ComponentFactoryManager.setFactory(testFactory)
 
             formats.forEach { format ->
                 val command = SSLTestCommand()

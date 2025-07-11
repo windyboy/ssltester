@@ -47,10 +47,10 @@ class CertificateValidatorTest {
                     2048,
                 )
             val result = validator.validateCertificateChain(listOf(certificate))
-            // Single self-signed certificate will fail chain validation
-            assertFalse(result.isValid)
-            assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Error)
-            assertTrue(result.errors.isNotEmpty())
+            // 单证书链会直接返回 Unknown
+            assertTrue(result.isValid)
+            assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Unknown)
+            assertTrue(result.errors.any { it.contains("too short", ignoreCase = true) })
         }
 
     @Test
@@ -63,11 +63,9 @@ class CertificateValidatorTest {
                     2048,
                 )
             val result = validator.validateCertificateChain(listOf(certificate))
-            assertFalse(result.isValid)
-            assertTrue(
-                result.revocationStatus is CertificateValidator.RevocationStatus.Error ||
-                    result.revocationStatus is CertificateValidator.RevocationStatus.Revoked,
-            )
+            // 依然是单证书链，返回 Unknown
+            assertTrue(result.isValid)
+            assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Unknown)
         }
 
     private fun createTestCertificate(

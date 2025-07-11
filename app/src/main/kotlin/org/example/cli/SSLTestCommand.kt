@@ -5,7 +5,7 @@ import mu.KotlinLogging
 import org.example.AppVersion
 import org.example.SSLConnectionTester
 import org.example.SSLConstants
-import org.example.di.ServiceLocatorProvider
+import org.example.factory.ComponentFactoryManager
 import org.example.model.OutputFormat
 import org.example.model.SSLConnection
 import org.example.model.SSLTestConfig
@@ -40,7 +40,7 @@ class OutputFormatConverter : ITypeConverter<OutputFormat> {
 )
 class SSLTestCommand : Callable<Int> {
     /** SSL 连接测试器实现 */
-    private val sslTester: SSLConnectionTester = ServiceLocatorProvider.getServiceLocator().getSSLConnectionTester()
+    private val sslTester: SSLConnectionTester = ComponentFactoryManager.getFactory().createSSLConnectionTester()
 
     /**
      * 目标主机
@@ -115,7 +115,7 @@ class SSLTestCommand : Callable<Int> {
 
                 sslTester.testConnection(host, port, config)
                     .onSuccess { connection ->
-                        val formatter = ServiceLocatorProvider.getServiceLocator().getFormatter(format)
+                        val formatter = ComponentFactoryManager.getFactory().createFormatter(format)
                         val output = formatter.format(connection)
 
                         if (outputFile != null) {
@@ -136,7 +136,7 @@ class SSLTestCommand : Callable<Int> {
                                 isSecure = false,
                                 certificateChain = emptyList(),
                             )
-                        val formatter = ServiceLocatorProvider.getServiceLocator().getFormatter(OutputFormat.TXT)
+                        val formatter = ComponentFactoryManager.getFactory().createFormatter(OutputFormat.TXT)
                         System.err.println(formatter.format(failedConnection))
                         return@runBlocking SSLConstants.EXIT_CONNECTION_ERROR
                     }

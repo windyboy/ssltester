@@ -73,6 +73,7 @@ dependencies {
     // Certificate validation libraries
     implementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
     implementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
+    implementation("network.oxalis.pkix:pkix-ocsp:2.5.0")
 
     // Testing
     testImplementation("org.jetbrains.kotlin:kotlin-test")

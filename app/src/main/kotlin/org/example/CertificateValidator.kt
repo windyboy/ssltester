@@ -2,19 +2,8 @@ package org.example
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder
-import org.bouncycastle.cert.ocsp.BasicOCSPResp
-import org.bouncycastle.cert.ocsp.CertificateID
-import org.bouncycastle.cert.ocsp.CertificateStatus
-import org.bouncycastle.cert.ocsp.OCSPReqBuilder
-import org.bouncycastle.cert.ocsp.OCSPResp
-import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.KeyStore
-import java.security.cert.CertPathValidator
-import java.security.cert.CertificateFactory
-import java.security.cert.PKIXParameters
+import network.oxalis.pkix.ocsp.CertificateResult
+import network.oxalis.pkix.ocsp.OcspClient
 import java.security.cert.X509Certificate
 
 class CertificateValidator {
@@ -37,159 +26,62 @@ class CertificateValidator {
     suspend fun validateCertificateChain(certificates: List<X509Certificate>): ValidationResult =
         withContext(Dispatchers.IO) {
             if (certificates.isEmpty()) {
-                return@withContext ValidationResult(
+                ValidationResult(
                     isValid = false,
                     revocationStatus = RevocationStatus.Error("No certificates provided"),
                     errors = listOf("No certificates provided"),
                 )
-            }
-
-            val errors = mutableListOf<String>()
-
-            // 1. 证书链结构校验
-            try {
-                val certFactory = CertificateFactory.getInstance("X.509")
-                val certPath = certFactory.generateCertPath(certificates)
-
-                // Use system default trust store instead of empty one
-                val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
-                val trustStorePath = System.getProperty("javax.net.ssl.trustStore")
-                val trustStorePassword = System.getProperty("javax.net.ssl.trustStorePassword")
-
-                if (trustStorePath != null) {
-                    // Use custom trust store if specified
-                    trustStore.load(java.io.FileInputStream(trustStorePath), trustStorePassword?.toCharArray())
-                } else {
-                    // Use system default trust store
-                    val defaultTrustStorePath = System.getProperty("java.home") + "/lib/security/cacerts"
-                    val defaultTrustStoreFile = java.io.File(defaultTrustStorePath)
-                    if (defaultTrustStoreFile.exists()) {
-                        trustStore.load(java.io.FileInputStream(defaultTrustStoreFile), "changeit".toCharArray())
-                    } else {
-                        // Fallback to empty trust store but skip validation
-                        trustStore.load(null, null)
-                        // Skip PKIX validation for now since we don't have proper trust anchors
-                        return@withContext ValidationResult(
-                            isValid = true,
-                            revocationStatus = RevocationStatus.Unknown,
-                            errors = listOf("Skipping certificate chain validation - no trust store available"),
-                        )
-                    }
-                }
-
-                val pkixParams = PKIXParameters(trustStore)
-                pkixParams.isRevocationEnabled = false // 只用OCSP
-                CertPathValidator.getInstance("PKIX").validate(certPath, pkixParams)
-            } catch (e: Exception) {
-                errors.add("Chain validation failed: ${e.message}")
-                return@withContext ValidationResult(
-                    isValid = false,
-                    revocationStatus = RevocationStatus.Error(e.message ?: "Chain validation failed"),
-                    errors = errors,
-                )
-            }
-
-            // 2. OCSP 检查
-            val leaf = certificates[0]
-            val issuer = certificates.getOrNull(1) ?: certificates[0]
-            val ocspUrl = getOcspUrl(leaf)
-
-            if (ocspUrl == null) {
-                return@withContext ValidationResult(
+            } else if (certificates.size < 2) {
+                ValidationResult(
                     isValid = true,
                     revocationStatus = RevocationStatus.Unknown,
-                    errors = errors,
+                    errors = listOf("Certificate chain too short for OCSP validation"),
                 )
-            }
+            } else {
+                val leaf = certificates[0]
+                val issuer = certificates[1]
+                try {
+                    val ocspClientBuilder =
+                        OcspClient.builder()
+                            .set(OcspClient.EXCEPTION_ON_UNKNOWN, false)
+                            .set(OcspClient.EXCEPTION_ON_REVOKED, false)
+                    val ocspClient = ocspClientBuilder.build()
+                    val result: CertificateResult = ocspClient.verify(leaf, issuer)
+                    val status = result.status.toString().uppercase()
 
-            try {
-                val certId =
-                    CertificateID(
-                        JcaDigestCalculatorProviderBuilder().build().get(CertificateID.HASH_SHA1),
-                        JcaX509CertificateHolder(issuer),
-                        leaf.serialNumber,
-                    )
-
-                val reqGen = OCSPReqBuilder()
-                reqGen.addRequest(certId)
-                val ocspReq = reqGen.build()
-
-                val conn = URL(ocspUrl).openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/ocsp-request")
-                conn.setRequestProperty("Accept", "application/ocsp-response")
-                conn.doOutput = true
-                conn.outputStream.use { it.write(ocspReq.encoded) }
-
-                val responseBytes = conn.inputStream.use { it.readBytes() }
-                val resp = OCSPResp(responseBytes)
-
-                if (resp.status != OCSPResp.SUCCESSFUL) {
-                    return@withContext ValidationResult(
-                        isValid = true,
-                        revocationStatus = RevocationStatus.Unknown,
-                        errors = errors,
-                    )
-                }
-
-                val basic =
-                    resp.responseObject as? BasicOCSPResp
-                        ?: return@withContext ValidationResult(
-                            isValid = true,
-                            revocationStatus = RevocationStatus.Unknown,
-                            errors = errors,
-                        )
-
-                val singleResp =
-                    basic.responses.firstOrNull()
-                        ?: return@withContext ValidationResult(
-                            isValid = true,
-                            revocationStatus = RevocationStatus.Unknown,
-                            errors = errors,
-                        )
-
-                when (val status = singleResp.certStatus) {
-                    null -> return@withContext ValidationResult(
-                        isValid = true,
-                        revocationStatus = RevocationStatus.Valid,
-                        errors = errors,
-                    )
-                    is CertificateStatus -> {
-                        if (status.javaClass.simpleName == "Revoked") {
-                            return@withContext ValidationResult(
+                    when (status) {
+                        "GOOD" ->
+                            ValidationResult(
+                                isValid = true,
+                                revocationStatus = RevocationStatus.Valid,
+                                errors = emptyList(),
+                            )
+                        "REVOKED" ->
+                            ValidationResult(
                                 isValid = false,
-                                revocationStatus = RevocationStatus.Revoked("OCSP: revoked"),
-                                errors = errors,
+                                revocationStatus = RevocationStatus.Revoked("Certificate revoked via OCSP"),
+                                errors = emptyList(),
                             )
-                        } else if (status.javaClass.simpleName == "Unknown") {
-                            return@withContext ValidationResult(
+                        "UNKNOWN" ->
+                            ValidationResult(
                                 isValid = true,
                                 revocationStatus = RevocationStatus.Unknown,
-                                errors = errors,
+                                errors = emptyList(),
                             )
-                        } else {
-                            return@withContext ValidationResult(
+                        else ->
+                            ValidationResult(
                                 isValid = true,
                                 revocationStatus = RevocationStatus.Unknown,
-                                errors = errors,
+                                errors = listOf("Unknown OCSP status: ${result.status}"),
                             )
-                        }
                     }
+                } catch (e: Exception) {
+                    ValidationResult(
+                        isValid = true,
+                        revocationStatus = RevocationStatus.Error("OCSP check failed: ${e.message}"),
+                        errors = listOf("OCSP check failed: ${e.message}"),
+                    )
                 }
-            } catch (e: Exception) {
-                errors.add("OCSP check failed: ${e.message}")
-                return@withContext ValidationResult(
-                    isValid = true,
-                    revocationStatus = RevocationStatus.Error(e.message ?: "OCSP check failed"),
-                    errors = errors,
-                )
             }
         }
-
-    private fun getOcspUrl(cert: X509Certificate): String? {
-        val aiaExt = cert.getExtensionValue("1.3.6.1.5.5.7.1.1") ?: return null
-        // 这里建议用 ASN.1 解析库解析出 OCSP URL，简单起见可用第三方工具或正则提取
-        // 生产环境请用 ASN.1 解析
-        return null // TODO: 实现 ASN.1 解析
-    }
 }

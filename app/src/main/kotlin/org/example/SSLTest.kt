@@ -2,7 +2,6 @@ package org.example
 
 import mu.KotlinLogging
 import org.example.cli.SSLTestCommand
-import org.example.di.ServiceLocatorProvider
 import picocli.CommandLine
 import kotlin.system.exitProcess
 
@@ -18,20 +17,13 @@ private val logger = KotlinLogging.logger {}
  */
 fun main(args: Array<String>) {
     try {
-        // 使用依赖注入创建命令实例
+        // 使用工厂模式创建命令实例
         val command = SSLTestCommand()
         val exitCode = CommandLine(command).execute(*args)
-
-        // 清理资源
-        ServiceLocatorProvider.shutdown()
 
         exitProcess(exitCode)
     } catch (e: Exception) {
         logger.error(e) { "Application failed to start" }
-
-        // 确保在异常情况下也清理资源
-        ServiceLocatorProvider.shutdown()
-
         exitProcess(1)
     }
 }
