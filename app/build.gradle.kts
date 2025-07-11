@@ -44,6 +44,7 @@ val versions =
         "mockk" to "1.13.9",
         "bytebuddy" to "1.14.12",
         "picocli" to "4.7.5",
+        "bouncycastle" to "1.72",
     )
 
 dependencies {
@@ -68,6 +69,10 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions["coroutines"]}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${versions["coroutines"]}")
+
+    // Certificate validation libraries
+    implementation("org.bouncycastle:bcprov-jdk18on:${versions["bouncycastle"]}")
+    implementation("org.bouncycastle:bcpkix-jdk18on:${versions["bouncycastle"]}")
 
     // Testing
     testImplementation("org.jetbrains.kotlin:kotlin-test")

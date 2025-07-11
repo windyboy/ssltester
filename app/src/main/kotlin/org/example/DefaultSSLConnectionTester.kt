@@ -80,7 +80,7 @@ class DefaultSSLConnectionTester : SSLConnectionTester {
 
                         val certificateValidation =
                             if (certificates.isNotEmpty()) {
-                                certificateValidator.validateCertificateChain(certificates, host)
+                                certificateValidator.validateCertificateChain(certificates)
                             } else {
                                 null
                             }
