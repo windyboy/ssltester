@@ -26,6 +26,33 @@ class EmojiTextOutputFormatter : OutputFormatter {
                 append("🔒 SSL证书信息 - ${connection.host}:${connection.port}\n")
                 append("=".repeat(maxLineLength) + "\n")
 
+                // Display certificate validation results first
+                connection.certificateValidation?.let { validation ->
+                    append("🔍 证书验证结果\n")
+                    append("=".repeat(maxLineLength) + "\n")
+
+                    val isValid = validation.isValid
+                    val statusIcon = if (isValid) "✅" else "❌"
+                    append("$statusIcon 验证状态: ${if (isValid) "有效" else "无效"}\n")
+
+                    val revocationStatus =
+                        when (val status = validation.revocationStatus) {
+                            is org.example.CertificateValidator.RevocationStatus.Valid -> "✅ 有效"
+                            is org.example.CertificateValidator.RevocationStatus.Revoked -> "❌ 已撤销: ${status.reason}"
+                            is org.example.CertificateValidator.RevocationStatus.Unknown -> "❓ 未知"
+                            is org.example.CertificateValidator.RevocationStatus.Error -> "⚠️  错误: ${status.message}"
+                        }
+                    append("🔄 撤销状态: $revocationStatus\n")
+
+                    if (validation.errors.isNotEmpty()) {
+                        append("⚠️  错误信息:\n")
+                        validation.errors.forEach { error ->
+                            append("   • $error\n")
+                        }
+                    }
+                    append("\n")
+                }
+
                 // Basic Certificate Information
                 if (connection.certificateChain.isNotEmpty()) {
                     val leafCert = connection.certificateChain.first()
