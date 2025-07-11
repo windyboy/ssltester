@@ -85,6 +85,15 @@ application {
     applicationName = "ssl-test"
 }
 
+// Configure application to use shadowJar instead of regular jar
+tasks.named("jar") {
+    enabled = false
+}
+
+tasks.named("shadowJar") {
+    enabled = true
+}
+
 // Run task configuration
 tasks.named<JavaExec>("run") {
     standardInput = System.`in`
@@ -119,11 +128,27 @@ tasks.test {
     systemProperty("junit.platform.listener.default.class", "org.example.listener.TestExecutionTimeListener")
 }
 
-tasks.shadowJar {
-    archiveBaseName.set("ssl-test")
+// Configure all jar tasks
+tasks.withType<Jar> {
+    archiveBaseName.set("ssl-test") // Change "ssl-test" to your desired name
     archiveClassifier.set("")
     archiveVersion.set(projectVersion)
+}
+
+// Shadow jar specific configuration
+tasks.shadowJar {
     mergeServiceFiles()
+    // You can override specific settings here if needed
+    // archiveBaseName.set("ssl-test-fat")
+}
+
+// Fix start scripts dependencies
+tasks.named("startScripts") {
+    dependsOn(tasks.shadowJar)
+}
+
+tasks.named("startShadowScripts") {
+    dependsOn(tasks.shadowJar)
 }
 
 // Configure Kotlin daemon
