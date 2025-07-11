@@ -192,6 +192,83 @@ tasks:
       - 'echo "🔍 Checking dependencies with script…"'
       - './scripts/update-dependencies.sh check'
 
+  # --- GitHub Release ----------------------------------------
+  release-check:
+    desc: Check if current version is already released on GitHub
+    cmds:
+      - 'echo "🔍 Checking GitHub releases for version {{.VERSION}}…"'
+      - |
+        if command -v gh >/dev/null 2>&1; then
+          if gh release view "v{{.VERSION}}" 2>/dev/null; then
+            echo "❌ Version v{{.VERSION}} already exists on GitHub"
+            exit 1
+          else
+            echo "✅ Version v{{.VERSION}} is available for release"
+          fi
+        else
+          echo "⚠️  GitHub CLI not found, skipping release check"
+        fi
+
+  release-create:
+    desc: Create a new GitHub release
+    deps: [validate-version, build-fat-jar, release-check]
+    cmds:
+      - 'echo "🚀 Creating GitHub release for version {{.VERSION}}…"'
+      - |
+        if command -v gh >/dev/null 2>&1; then
+          # Create release with assets
+          gh release create "v{{.VERSION}}" \
+            --title "Release v{{.VERSION}}" \
+            --notes "SSL Test Tool v{{.VERSION}} release" \
+            app/build/libs/ssl-test-{{.VERSION}}.jar
+          echo "✅ GitHub release created successfully"
+        else
+          echo "❌ GitHub CLI not found. Please install gh CLI first:"
+          echo "   https://cli.github.com/"
+          exit 1
+        fi
+
+  release-draft:
+    desc: Create a draft GitHub release
+    deps: [validate-version, build-fat-jar, release-check]
+    cmds:
+      - 'echo "📝 Creating draft GitHub release for version {{.VERSION}}…"'
+      - |
+        if command -v gh >/dev/null 2>&1; then
+          # Create draft release with assets
+          gh release create "v{{.VERSION}}" \
+            --draft \
+            --title "Release v{{.VERSION}}" \
+            --notes "SSL Test Tool v{{.VERSION}} release" \
+            app/build/libs/ssl-test-{{.VERSION}}.jar
+          echo "✅ Draft GitHub release created successfully"
+        else
+          echo "❌ GitHub CLI not found. Please install gh CLI first:"
+          echo "   https://cli.github.com/"
+          exit 1
+        fi
+
+  release-publish:
+    desc: Publish a draft GitHub release
+    deps: [validate-version]
+    cmds:
+      - 'echo "📤 Publishing GitHub release for version {{.VERSION}}…"'
+      - |
+        if command -v gh >/dev/null 2>&1; then
+          gh release edit "v{{.VERSION}}" --draft=false
+          echo "✅ GitHub release published successfully"
+        else
+          echo "❌ GitHub CLI not found. Please install gh CLI first:"
+          echo "   https://cli.github.com/"
+          exit 1
+        fi
+
+  release-full:
+    desc: Complete release workflow (build, test, create release)
+    deps: [validate-version, check, build-fat-jar, release-create]
+    cmds:
+      - 'echo "🎉 Complete release workflow finished for v{{.VERSION}}"'
+
   # --- Help -----------------------------------------------
   default:
     desc: Show help and available tasks
