@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter
  * 文本格式输出格式化器。
  * 以彩色文本方式输出 SSL 连接结果。
  */
-class TextOutputFormatter {
+class TextOutputFormatter : OutputFormatter {
     private val ansiReset = "\u001B[0m"
     private val ansiGreen = "\u001B[32m"
     private val ansiRed = "\u001B[31m"
@@ -34,7 +34,7 @@ class TextOutputFormatter {
      * @param connection SSL 连接结果
      * @return 格式化后的文本
      */
-    fun format(connection: SSLConnection): String {
+    override fun format(connection: SSLConnection): String {
         return buildString {
             try {
                 // Header
@@ -184,5 +184,5 @@ class TextOutputFormatter {
     /**
      * 获取文件扩展名。
      */
-    fun getFileExtension(): String = "txt"
+    override fun getFileExtension(): String = "txt"
 }

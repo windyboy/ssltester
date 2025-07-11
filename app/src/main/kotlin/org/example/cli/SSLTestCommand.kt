@@ -3,13 +3,10 @@ package org.example.cli
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.example.AppVersion
-import org.example.DefaultSSLConnectionTester
 import org.example.SSLConnectionTester
 import org.example.SSLConstants
-import org.example.formatter.EmojiTextOutputFormatter
-import org.example.formatter.JsonOutputFormatter
-import org.example.formatter.TextOutputFormatter
-import org.example.formatter.YamlOutputFormatter
+import org.example.di.ServiceLocatorProvider
+import org.example.formatter.OutputFormatter
 import org.example.model.OutputFormat
 import org.example.model.SSLConnection
 import org.example.model.SSLTestConfig
@@ -44,7 +41,7 @@ class OutputFormatConverter : ITypeConverter<OutputFormat> {
 )
 class SSLTestCommand : Callable<Int> {
     /** SSL 连接测试器实现 */
-    private val sslTester: SSLConnectionTester = DefaultSSLConnectionTester()
+    private val sslTester: SSLConnectionTester = ServiceLocatorProvider.getServiceLocator().getSSLConnectionTester()
 
     /**
      * 目标主机
@@ -119,14 +116,8 @@ class SSLTestCommand : Callable<Int> {
 
                 sslTester.testConnection(host, port, config)
                     .onSuccess { connection ->
-                        val output =
-                            when (format) {
-                                OutputFormat.TXT -> TextOutputFormatter().format(connection)
-                                OutputFormat.JSON -> JsonOutputFormatter().format(connection)
-                                OutputFormat.YAML -> YamlOutputFormatter().format(connection)
-                                OutputFormat.EMOJI -> EmojiTextOutputFormatter().format(connection)
-                                OutputFormat.UNKNOWN -> TextOutputFormatter().format(connection)
-                            }
+                        val formatter = ServiceLocatorProvider.getServiceLocator().getFormatter(format)
+                        val output = formatter.format(connection)
 
                         if (outputFile != null) {
                             File(outputFile!!).writeText(output)
@@ -146,7 +137,7 @@ class SSLTestCommand : Callable<Int> {
                                 isSecure = false,
                                 certificateChain = emptyList(),
                             )
-                        val formatter = TextOutputFormatter()
+                        val formatter = ServiceLocatorProvider.getServiceLocator().getFormatter(OutputFormat.TXT)
                         System.err.println(formatter.format(failedConnection))
                         return@runBlocking SSLConstants.EXIT_CONNECTION_ERROR
                     }

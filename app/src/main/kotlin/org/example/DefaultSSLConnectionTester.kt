@@ -3,6 +3,7 @@ package org.example
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.example.di.ServiceLocatorProvider
 import org.example.exception.SSLTestException
 import org.example.model.SSLConnection
 import org.example.model.SSLTestConfig
@@ -26,7 +27,7 @@ import javax.net.ssl.TrustManagerFactory
  * 负责建立 SSL/TLS 连接并收集连接信息。
  */
 class DefaultSSLConnectionTester : SSLConnectionTester {
-    private val certificateValidator = CertificateValidator()
+    private val certificateValidator: CertificateValidator = ServiceLocatorProvider.getServiceLocator().getCertificateValidator()
 
     /**
      * 测试指定主机和端口的 SSL/TLS 连接。

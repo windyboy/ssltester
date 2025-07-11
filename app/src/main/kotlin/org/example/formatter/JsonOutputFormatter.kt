@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter
 /**
  * JSON 格式输出格式化器。
  */
-class JsonOutputFormatter {
+class JsonOutputFormatter : OutputFormatter {
     private val objectMapper =
         ObjectMapper().apply {
             registerModule(JavaTimeModule())
@@ -22,7 +22,7 @@ class JsonOutputFormatter {
      * @param connection SSL 连接结果
      * @return JSON 字符串
      */
-    fun format(connection: SSLConnection): String {
+    override fun format(connection: SSLConnection): String {
         val result =
             mapOf(
                 "host" to connection.host,
@@ -90,5 +90,5 @@ class JsonOutputFormatter {
     /**
      * 获取文件扩展名。
      */
-    fun getFileExtension(): String = "json"
+    override fun getFileExtension(): String = "json"
 }

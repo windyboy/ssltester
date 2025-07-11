@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter
 /**
  * YAML 格式输出格式化器。
  */
-class YamlOutputFormatter {
+class YamlOutputFormatter : OutputFormatter {
     private val objectMapper =
         ObjectMapper(YAMLFactory()).apply {
             registerModule(JavaTimeModule())
@@ -20,7 +20,7 @@ class YamlOutputFormatter {
      * @param connection SSL 连接结果
      * @return YAML 字符串
      */
-    fun format(connection: SSLConnection): String {
+    override fun format(connection: SSLConnection): String {
         val result =
             mapOf(
                 "host" to connection.host,
@@ -88,5 +88,5 @@ class YamlOutputFormatter {
     /**
      * 获取文件扩展名。
      */
-    fun getFileExtension(): String = "yaml"
+    override fun getFileExtension(): String = "yaml"
 }

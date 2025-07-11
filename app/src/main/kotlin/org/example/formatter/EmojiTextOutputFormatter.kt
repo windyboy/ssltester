@@ -11,7 +11,7 @@ import java.time.format.DateTimeFormatter
  * Emoji文本格式输出格式化器。
  * 以带有emoji的文本方式输出 SSL 连接结果。
  */
-class EmojiTextOutputFormatter {
+class EmojiTextOutputFormatter : OutputFormatter {
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     private val maxLineLength = SSLConstants.MAX_LINE_LENGTH
 
@@ -20,7 +20,7 @@ class EmojiTextOutputFormatter {
      * @param connection SSL 连接结果
      * @return 格式化后的文本
      */
-    fun format(connection: SSLConnection): String {
+    override fun format(connection: SSLConnection): String {
         return buildString {
             try {
                 append("🔒 SSL证书信息 - ${connection.host}:${connection.port}\n")
@@ -177,5 +177,5 @@ class EmojiTextOutputFormatter {
     /**
      * 获取文件扩展名。
      */
-    fun getFileExtension(): String = "txt"
+    override fun getFileExtension(): String = "txt"
 }
