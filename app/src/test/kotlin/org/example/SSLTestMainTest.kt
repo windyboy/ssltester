@@ -121,24 +121,16 @@ class SSLTestMainTest {
     }
 
     @Test
-    fun `test main function with empty arguments`() {
-        val args = arrayOf<String>()
+    fun `test main function with empty and null arguments`() {
+        // Test empty arguments
+        val emptyArgs = arrayOf<String>()
+        val command1 = SSLTestCommand()
+        val exitCode1 = CommandLine(command1).execute(*emptyArgs)
+        assertEquals(2, exitCode1) // picocli returns 2 for missing required parameters
 
-        val command = SSLTestCommand()
-        val exitCode = CommandLine(command).execute(*args)
-
-        assertEquals(2, exitCode) // picocli returns 2 for missing required parameters
-    }
-
-    @Test
-    fun `test main function with null arguments`() {
-        // This test verifies that the application handles null arguments gracefully
-        // In a real scenario, main would be called with null args, but we can't test that directly
-        // due to System.exit() calls
-
-        val command = SSLTestCommand()
-        // Test that the command can be created without issues
-        assertNotNull(command)
+        // Test null arguments handling
+        val command2 = SSLTestCommand()
+        assertNotNull(command2) // Test that the command can be created without issues
     }
 
     @Test

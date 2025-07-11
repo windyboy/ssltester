@@ -84,34 +84,22 @@ class DefaultSSLConnectionTesterTest {
     }
 
     @Test
-    fun testConnectionWithZeroTimeout() {
-        runBlocking {
-            val result =
-                tester.testConnection(
-                    "example.com",
-                    443,
-                    SSLTestConfig(connectionTimeout = 0),
-                )
+    fun testConnectionWithInvalidTimeouts() {
+        val invalidTimeouts = listOf(0, -1)
+        
+        invalidTimeouts.forEach { timeout ->
+            runBlocking {
+                val result =
+                    tester.testConnection(
+                        "example.com",
+                        443,
+                        SSLTestConfig(connectionTimeout = timeout),
+                    )
 
-            assertTrue(result.isFailure)
-            val error = result.exceptionOrNull()
-            assertIs<SSLTestException>(error)
-        }
-    }
-
-    @Test
-    fun testConnectionWithNegativeTimeout() {
-        runBlocking {
-            val result =
-                tester.testConnection(
-                    "example.com",
-                    443,
-                    SSLTestConfig(connectionTimeout = -1),
-                )
-
-            assertTrue(result.isFailure)
-            val error = result.exceptionOrNull()
-            assertIs<SSLTestException>(error)
+                assertTrue(result.isFailure)
+                val error = result.exceptionOrNull()
+                assertIs<SSLTestException>(error)
+            }
         }
     }
 
@@ -132,50 +120,22 @@ class DefaultSSLConnectionTesterTest {
     }
 
     @Test
-    fun testConnectionWithNegativePort() {
-        runBlocking {
-            val result =
-                tester.testConnection(
-                    "example.com",
-                    -1,
-                    SSLTestConfig(connectionTimeout = 5000),
-                )
+    fun testConnectionWithInvalidPorts() {
+        val invalidPorts = listOf(-1, 0, 65535)
+        
+        invalidPorts.forEach { port ->
+            runBlocking {
+                val result =
+                    tester.testConnection(
+                        "example.com",
+                        port,
+                        SSLTestConfig(connectionTimeout = 5000),
+                    )
 
-            assertTrue(result.isFailure)
-            val error = result.exceptionOrNull()
-            assertIs<SSLTestException.ConnectionError>(error)
-        }
-    }
-
-    @Test
-    fun testConnectionWithZeroPort() {
-        runBlocking {
-            val result =
-                tester.testConnection(
-                    "example.com",
-                    0,
-                    SSLTestConfig(connectionTimeout = 5000),
-                )
-
-            assertTrue(result.isFailure)
-            val error = result.exceptionOrNull()
-            assertIs<SSLTestException.ConnectionError>(error)
-        }
-    }
-
-    @Test
-    fun testConnectionWithMaximumPort() {
-        runBlocking {
-            val result =
-                tester.testConnection(
-                    "example.com",
-                    65535,
-                    SSLTestConfig(connectionTimeout = 5000),
-                )
-
-            assertTrue(result.isFailure)
-            val error = result.exceptionOrNull()
-            assertIs<SSLTestException.ConnectionError>(error)
+                assertTrue(result.isFailure)
+                val error = result.exceptionOrNull()
+                assertIs<SSLTestException.ConnectionError>(error)
+            }
         }
     }
 

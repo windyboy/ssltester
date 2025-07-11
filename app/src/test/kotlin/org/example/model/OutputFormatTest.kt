@@ -30,57 +30,23 @@ class OutputFormatTest {
     }
 
     @Test
-    fun `test valueOf with TXT lowercase`() {
-        val result = OutputFormat.valueOf("txt")
-        assertEquals(OutputFormat.TXT, result)
-    }
-
-    @Test
-    fun `test valueOf with TXT uppercase`() {
-        val result = OutputFormat.valueOf("TXT")
-        assertEquals(OutputFormat.TXT, result)
-    }
-
-    @Test
-    fun `test valueOf with TXT mixed case`() {
-        val result = OutputFormat.valueOf("Txt")
-        assertEquals(OutputFormat.TXT, result)
-    }
-
-    @Test
-    fun `test valueOf with JSON lowercase`() {
-        val result = OutputFormat.valueOf("json")
-        assertEquals(OutputFormat.JSON, result)
-    }
-
-    @Test
-    fun `test valueOf with JSON uppercase`() {
-        val result = OutputFormat.valueOf("JSON")
-        assertEquals(OutputFormat.JSON, result)
-    }
-
-    @Test
-    fun `test valueOf with JSON mixed case`() {
-        val result = OutputFormat.valueOf("Json")
-        assertEquals(OutputFormat.JSON, result)
-    }
-
-    @Test
-    fun `test valueOf with YAML lowercase`() {
-        val result = OutputFormat.valueOf("yaml")
-        assertEquals(OutputFormat.YAML, result)
-    }
-
-    @Test
-    fun `test valueOf with YAML uppercase`() {
-        val result = OutputFormat.valueOf("YAML")
-        assertEquals(OutputFormat.YAML, result)
-    }
-
-    @Test
-    fun `test valueOf with YAML mixed case`() {
-        val result = OutputFormat.valueOf("Yaml")
-        assertEquals(OutputFormat.YAML, result)
+    fun `test valueOf with valid formats and case variations`() {
+        // Test all valid formats with different case variations
+        val testCases = mapOf(
+            "txt" to OutputFormat.TXT,
+            "TXT" to OutputFormat.TXT,
+            "Txt" to OutputFormat.TXT,
+            "json" to OutputFormat.JSON,
+            "JSON" to OutputFormat.JSON,
+            "Json" to OutputFormat.JSON,
+            "yaml" to OutputFormat.YAML,
+            "YAML" to OutputFormat.YAML,
+            "Yaml" to OutputFormat.YAML
+        )
+        
+        testCases.forEach { (input, expected) ->
+            assertEquals(expected, OutputFormat.valueOf(input), "Failed for input: $input")
+        }
     }
 
     @Test
@@ -126,41 +92,16 @@ class OutputFormatTest {
     }
 
     @Test
-    fun `test valueOf with XML format`() {
-        val result = OutputFormat.valueOf("xml")
-        assertEquals(OutputFormat.UNKNOWN, result)
-    }
-
-    @Test
-    fun `test valueOf with CSV format`() {
-        val result = OutputFormat.valueOf("csv")
-        assertEquals(OutputFormat.UNKNOWN, result)
-    }
-
-    @Test
-    fun `test valueOf with HTML format`() {
-        val result = OutputFormat.valueOf("html")
-        assertEquals(OutputFormat.UNKNOWN, result)
-    }
-
-    @Test
-    fun `test valueOf with very long string`() {
-        val longString = "a".repeat(100)
-        val result = OutputFormat.valueOf(longString.uppercase())
-
-        assertEquals(OutputFormat.UNKNOWN, result)
-    }
-
-    @Test
-    fun `test valueOf with unicode characters`() {
-        val result = OutputFormat.valueOf("tëxt")
-        assertEquals(OutputFormat.UNKNOWN, result)
-    }
-
-    @Test
-    fun `test valueOf with emoji`() {
-        val result = OutputFormat.valueOf("txt😀")
-        assertEquals(OutputFormat.UNKNOWN, result)
+    fun `test valueOf with invalid formats`() {
+        // Test various invalid formats
+        val invalidFormats = listOf(
+            "invalid", "", "  txt  ", "txt!", "123", "tx", "txtx",
+            "xml", "csv", "html", "a".repeat(100), "tëxt", "txt😀"
+        )
+        
+        invalidFormats.forEach { format ->
+            assertEquals(OutputFormat.UNKNOWN, OutputFormat.valueOf(format), "Failed for input: $format")
+        }
     }
 
     @Test
