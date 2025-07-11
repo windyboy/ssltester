@@ -13,7 +13,6 @@ import java.util.Date
 import javax.security.auth.x500.X500Principal
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class CertificateValidatorTest {
@@ -29,67 +28,120 @@ class CertificateValidatorTest {
     }
 
     @Test
-    fun `test validateCertificateChain with empty certificates`() = runBlocking {
-        val result = validator.validateCertificateChain(emptyList())
-        assertFalse(result.isValid)
-        assertEquals(1, result.errors.size)
-        assertTrue(result.errors.contains("No certificates provided"))
-        assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Error)
-    }
+    fun `test validateCertificateChain with empty certificates`() =
+        runBlocking {
+            val result = validator.validateCertificateChain(emptyList())
+            assertFalse(result.isValid)
+            assertEquals(1, result.errors.size)
+            assertTrue(result.errors.contains("No certificates provided"))
+            assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Error)
+        }
 
     @Test
-    fun `test validateCertificateChain with single certificate`() = runBlocking {
-        val certificate = createTestCertificate("CN=example.com", Instant.now().plus(30, ChronoUnit.DAYS), 2048)
-        val result = validator.validateCertificateChain(listOf(certificate))
-        // Single self-signed certificate will fail chain validation
-        assertFalse(result.isValid)
-        assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Error)
-        assertTrue(result.errors.isNotEmpty())
-    }
+    fun `test validateCertificateChain with single certificate`() =
+        runBlocking {
+            val certificate =
+                createTestCertificate(
+                    "CN=example.com",
+                    Instant.now().plus(30, ChronoUnit.DAYS),
+                    2048,
+                )
+            val result = validator.validateCertificateChain(listOf(certificate))
+            // Single self-signed certificate will fail chain validation
+            assertFalse(result.isValid)
+            assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Error)
+            assertTrue(result.errors.isNotEmpty())
+        }
 
     @Test
-    fun `test validateCertificateChain with expired certificate`() = runBlocking {
-        val certificate = createTestCertificate("CN=example.com", Instant.now().minus(1, ChronoUnit.DAYS), 2048)
-        val result = validator.validateCertificateChain(listOf(certificate))
-        assertFalse(result.isValid)
-        assertTrue(result.revocationStatus is CertificateValidator.RevocationStatus.Error || result.revocationStatus is CertificateValidator.RevocationStatus.Revoked)
-    }
+    fun `test validateCertificateChain with expired certificate`() =
+        runBlocking {
+            val certificate =
+                createTestCertificate(
+                    "CN=example.com",
+                    Instant.now().minus(1, ChronoUnit.DAYS),
+                    2048,
+                )
+            val result = validator.validateCertificateChain(listOf(certificate))
+            assertFalse(result.isValid)
+            assertTrue(
+                result.revocationStatus is CertificateValidator.RevocationStatus.Error ||
+                    result.revocationStatus is CertificateValidator.RevocationStatus.Revoked,
+            )
+        }
 
-    private fun createTestCertificate(subject: String, notAfter: Instant, keySize: Int): X509Certificate {
+    private fun createTestCertificate(
+        subject: String,
+        notAfter: Instant,
+        keySize: Int,
+    ): X509Certificate {
         val keyPairGenerator = KeyPairGenerator.getInstance("RSA")
         keyPairGenerator.initialize(keySize)
         val testKeyPair = keyPairGenerator.generateKeyPair()
         return object : X509Certificate() {
             override fun getVersion(): Int = 3
+
             override fun getSerialNumber(): BigInteger = BigInteger.ONE
+
             override fun getIssuerDN(): java.security.Principal = X500Principal(subject)
+
             override fun getSubjectDN(): java.security.Principal = X500Principal(subject)
+
             override fun getNotBefore(): Date = Date.from(Instant.now().minus(1, ChronoUnit.DAYS))
+
             override fun getNotAfter(): Date = Date.from(notAfter)
+
             override fun getSignature(): ByteArray = ByteArray(0)
+
             override fun getSigAlgName(): String = "SHA256withRSA"
+
             override fun getSigAlgOID(): String = "1.2.840.113549.1.1.11"
+
             override fun getSigAlgParams(): ByteArray? = null
+
             override fun getIssuerUniqueID(): BooleanArray? = null
+
             override fun getSubjectUniqueID(): BooleanArray? = null
+
             override fun getTBSCertificate(): ByteArray = ByteArray(0)
+
             override fun getIssuerX500Principal(): X500Principal = X500Principal(subject)
+
             override fun getSubjectX500Principal(): X500Principal = X500Principal(subject)
+
             override fun getKeyUsage(): BooleanArray? = null
+
             override fun getExtendedKeyUsage(): List<String>? = null
+
             override fun getBasicConstraints(): Int = -1
+
             override fun getSubjectAlternativeNames(): Collection<List<*>>? = null
+
             override fun getIssuerAlternativeNames(): Collection<List<*>>? = null
+
             override fun getCriticalExtensionOIDs(): Set<String>? = null
+
             override fun getExtensionValue(oid: String): ByteArray? = null
+
             override fun getNonCriticalExtensionOIDs(): Set<String>? = null
+
             override fun hasUnsupportedCriticalExtension(): Boolean = false
+
             override fun checkValidity() {}
+
             override fun checkValidity(date: Date) {}
+
             override fun getPublicKey(): java.security.PublicKey = testKeyPair.public
+
             override fun verify(key: java.security.PublicKey) {}
-            override fun verify(key: java.security.PublicKey, sigProvider: String) {}
+
+            override fun verify(
+                key: java.security.PublicKey,
+                sigProvider: String,
+            ) {}
+
             override fun toString(): String = "TestCertificate($subject)"
+
             override fun getEncoded(): ByteArray = ByteArray(0)
         }
     }

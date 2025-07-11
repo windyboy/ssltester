@@ -26,8 +26,11 @@ class CertificateValidator {
 
     sealed class RevocationStatus {
         object Valid : RevocationStatus()
+
         data class Revoked(val reason: String) : RevocationStatus()
+
         object Unknown : RevocationStatus()
+
         data class Error(val message: String) : RevocationStatus()
     }
 
@@ -40,9 +43,9 @@ class CertificateValidator {
                     errors = listOf("No certificates provided"),
                 )
             }
-            
+
             val errors = mutableListOf<String>()
-            
+
             // 1. 证书链结构校验
             try {
                 val certFactory = CertificateFactory.getInstance("X.509")
@@ -60,12 +63,12 @@ class CertificateValidator {
                     errors = errors,
                 )
             }
-            
+
             // 2. OCSP 检查
             val leaf = certificates[0]
             val issuer = certificates.getOrNull(1) ?: certificates[0]
             val ocspUrl = getOcspUrl(leaf)
-            
+
             if (ocspUrl == null) {
                 return@withContext ValidationResult(
                     isValid = true,
@@ -73,28 +76,29 @@ class CertificateValidator {
                     errors = errors,
                 )
             }
-            
+
             try {
-                val certId = CertificateID(
-                    JcaDigestCalculatorProviderBuilder().build().get(CertificateID.HASH_SHA1),
-                    JcaX509CertificateHolder(issuer),
-                    leaf.serialNumber,
-                )
-                
+                val certId =
+                    CertificateID(
+                        JcaDigestCalculatorProviderBuilder().build().get(CertificateID.HASH_SHA1),
+                        JcaX509CertificateHolder(issuer),
+                        leaf.serialNumber,
+                    )
+
                 val reqGen = OCSPReqBuilder()
                 reqGen.addRequest(certId)
                 val ocspReq = reqGen.build()
-                
+
                 val conn = URL(ocspUrl).openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/ocsp-request")
                 conn.setRequestProperty("Accept", "application/ocsp-response")
                 conn.doOutput = true
                 conn.outputStream.use { it.write(ocspReq.encoded) }
-                
+
                 val responseBytes = conn.inputStream.use { it.readBytes() }
                 val resp = OCSPResp(responseBytes)
-                
+
                 if (resp.status != OCSPResp.SUCCESSFUL) {
                     return@withContext ValidationResult(
                         isValid = true,
@@ -102,21 +106,23 @@ class CertificateValidator {
                         errors = errors,
                     )
                 }
-                
-                val basic = resp.responseObject as? BasicOCSPResp
-                    ?: return@withContext ValidationResult(
-                        isValid = true,
-                        revocationStatus = RevocationStatus.Unknown,
-                        errors = errors,
-                    )
-                
-                val singleResp = basic.responses.firstOrNull()
-                    ?: return@withContext ValidationResult(
-                        isValid = true,
-                        revocationStatus = RevocationStatus.Unknown,
-                        errors = errors,
-                    )
-                
+
+                val basic =
+                    resp.responseObject as? BasicOCSPResp
+                        ?: return@withContext ValidationResult(
+                            isValid = true,
+                            revocationStatus = RevocationStatus.Unknown,
+                            errors = errors,
+                        )
+
+                val singleResp =
+                    basic.responses.firstOrNull()
+                        ?: return@withContext ValidationResult(
+                            isValid = true,
+                            revocationStatus = RevocationStatus.Unknown,
+                            errors = errors,
+                        )
+
                 when (val status = singleResp.certStatus) {
                     null -> return@withContext ValidationResult(
                         isValid = true,
