@@ -9,22 +9,21 @@ private val logger = KotlinLogging.logger {}
  * 管理全局的服务定位器实例，支持运行时切换
  */
 object ServiceLocatorProvider {
-    
     @Volatile
     private var currentLocator: ServiceLocator? = null
-    
+
     /**
      * 获取当前的服务定位器
      */
     fun getServiceLocator(): ServiceLocator {
         return currentLocator ?: synchronized(this) {
-            currentLocator ?: DefaultServiceLocator.getInstance().also { 
-                currentLocator = it 
+            currentLocator ?: DefaultServiceLocator.getInstance().also {
+                currentLocator = it
                 logger.debug { "Initialized default ServiceLocator" }
             }
         }
     }
-    
+
     /**
      * 设置服务定位器
      * 主要用于测试环境
@@ -36,7 +35,7 @@ object ServiceLocatorProvider {
             logger.debug { "ServiceLocator replaced with: ${locator::class.simpleName}" }
         }
     }
-    
+
     /**
      * 重置为默认服务定位器
      */
@@ -47,7 +46,7 @@ object ServiceLocatorProvider {
             logger.debug { "ServiceLocator reset to default" }
         }
     }
-    
+
     /**
      * 清理资源
      */
@@ -58,4 +57,4 @@ object ServiceLocatorProvider {
             logger.info { "ServiceLocatorProvider shutdown" }
         }
     }
-} 
+}

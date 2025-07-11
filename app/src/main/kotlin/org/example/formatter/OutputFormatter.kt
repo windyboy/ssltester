@@ -13,10 +13,10 @@ interface OutputFormatter {
      * @return 格式化后的字符串
      */
     fun format(connection: SSLConnection): String
-    
+
     /**
      * 获取文件扩展名
      * @return 文件扩展名（不包含点）
      */
     fun getFileExtension(): String
-} 
+}

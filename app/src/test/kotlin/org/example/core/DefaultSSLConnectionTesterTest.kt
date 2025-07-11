@@ -9,7 +9,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class DefaultSSLConnectionTesterTest {
@@ -86,7 +85,7 @@ class DefaultSSLConnectionTesterTest {
     @Test
     fun testConnectionWithInvalidTimeouts() {
         val invalidTimeouts = listOf(0, -1)
-        
+
         invalidTimeouts.forEach { timeout ->
             runBlocking {
                 val result =
@@ -122,7 +121,7 @@ class DefaultSSLConnectionTesterTest {
     @Test
     fun testConnectionWithInvalidPorts() {
         val invalidPorts = listOf(-1, 0, 65535)
-        
+
         invalidPorts.forEach { port ->
             runBlocking {
                 val result =

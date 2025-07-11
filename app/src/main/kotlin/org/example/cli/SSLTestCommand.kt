@@ -6,7 +6,6 @@ import org.example.AppVersion
 import org.example.SSLConnectionTester
 import org.example.SSLConstants
 import org.example.di.ServiceLocatorProvider
-import org.example.formatter.OutputFormatter
 import org.example.model.OutputFormat
 import org.example.model.SSLConnection
 import org.example.model.SSLTestConfig

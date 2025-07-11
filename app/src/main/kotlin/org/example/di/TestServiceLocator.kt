@@ -12,32 +12,31 @@ import org.example.model.OutputFormat
 class TestServiceLocator(
     private val sslConnectionTester: SSLConnectionTester? = null,
     private val certificateValidator: CertificateValidator? = null,
-    private val formatters: Map<OutputFormat, OutputFormatter> = emptyMap()
+    private val formatters: Map<OutputFormat, OutputFormatter> = emptyMap(),
 ) : ServiceLocator {
-    
     override fun getSSLConnectionTester(): SSLConnectionTester {
         return sslConnectionTester ?: throw IllegalStateException(
-            "SSLConnectionTester not provided to TestServiceLocator"
+            "SSLConnectionTester not provided to TestServiceLocator",
         )
     }
-    
+
     override fun getCertificateValidator(): CertificateValidator {
         return certificateValidator ?: throw IllegalStateException(
-            "CertificateValidator not provided to TestServiceLocator"
+            "CertificateValidator not provided to TestServiceLocator",
         )
     }
-    
+
     override fun getFormatter(format: OutputFormat): OutputFormatter {
         return formatters[format] ?: throw IllegalStateException(
-            "Formatter for format $format not provided to TestServiceLocator"
+            "Formatter for format $format not provided to TestServiceLocator",
         )
     }
-    
+
     override fun getAllFormatters(): Map<OutputFormat, OutputFormatter> {
         return formatters
     }
-    
+
     override fun shutdown() {
         // 测试环境不需要特殊清理
     }
-} 
+}

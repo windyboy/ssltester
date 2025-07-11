@@ -6,12 +6,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.security.cert.X509Certificate
 import java.time.Duration
+import java.util.Date
+import javax.security.auth.x500.X500Principal
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import java.util.Date
-import javax.security.auth.x500.X500Principal
 
 class TextOutputFormatterTest {
     private lateinit var formatter: TextOutputFormatter
@@ -107,7 +107,7 @@ class TextOutputFormatterTest {
             )
 
         val result = formatter.format(connection)
-        
+
         // Debug: print the actual output
         println("=== ACTUAL OUTPUT ===")
         println(result)
@@ -702,37 +702,71 @@ class TextOutputFormatterTest {
     private fun createMockCertificate(subject: String): X509Certificate {
         return object : X509Certificate() {
             override fun getVersion(): Int = 3
+
             override fun getSerialNumber(): java.math.BigInteger = java.math.BigInteger.ONE
+
             override fun getIssuerDN(): java.security.Principal = X500Principal("CN=Test CA")
+
             override fun getSubjectDN(): java.security.Principal = X500Principal(subject)
+
             override fun getNotBefore(): java.util.Date = java.util.Date()
+
             override fun getNotAfter(): java.util.Date = java.util.Date(System.currentTimeMillis() + 365 * 24 * 60 * 60 * 1000L)
+
             override fun getTBSCertificate(): ByteArray = ByteArray(0)
+
             override fun getSignature(): ByteArray = ByteArray(0)
+
             override fun getSigAlgName(): String = "SHA256withRSA"
+
             override fun getSigAlgOID(): String = "1.2.840.113549.1.1.11"
+
             override fun getSigAlgParams(): ByteArray? = null
+
             override fun getIssuerUniqueID(): BooleanArray? = null
+
             override fun getSubjectUniqueID(): BooleanArray? = null
+
             override fun getKeyUsage(): BooleanArray? = null
+
             override fun getExtendedKeyUsage(): MutableList<String>? = null
+
             override fun getBasicConstraints(): Int = -1
+
             override fun getEncoded(): ByteArray = ByteArray(0)
+
             override fun verify(key: java.security.PublicKey) {}
-            override fun verify(key: java.security.PublicKey, sigProvider: String) {}
+
+            override fun verify(
+                key: java.security.PublicKey,
+                sigProvider: String,
+            ) {}
+
             override fun getCriticalExtensionOIDs(): MutableSet<String>? = null
+
             override fun getExtensionValue(oid: String): ByteArray? = null
+
             override fun getNonCriticalExtensionOIDs(): MutableSet<String>? = null
+
             override fun hasUnsupportedCriticalExtension(): Boolean = false
+
             override fun checkValidity() {}
+
             override fun checkValidity(date: java.util.Date) {}
+
             override fun toString(): String = "MockCertificate"
-            override fun getPublicKey(): java.security.PublicKey = object : java.security.PublicKey {
-                override fun getAlgorithm(): String = "RSA"
-                override fun getFormat(): String = "X.509"
-                override fun getEncoded(): ByteArray = ByteArray(0)
-            }
+
+            override fun getPublicKey(): java.security.PublicKey =
+                object : java.security.PublicKey {
+                    override fun getAlgorithm(): String = "RSA"
+
+                    override fun getFormat(): String = "X.509"
+
+                    override fun getEncoded(): ByteArray = ByteArray(0)
+                }
+
             override fun getSubjectX500Principal(): X500Principal = X500Principal(subject)
+
             override fun getIssuerX500Principal(): X500Principal = X500Principal("CN=Test CA")
         }
     }

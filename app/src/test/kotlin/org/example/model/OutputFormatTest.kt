@@ -32,18 +32,19 @@ class OutputFormatTest {
     @Test
     fun `test valueOf with valid formats and case variations`() {
         // Test all valid formats with different case variations
-        val testCases = mapOf(
-            "txt" to OutputFormat.TXT,
-            "TXT" to OutputFormat.TXT,
-            "Txt" to OutputFormat.TXT,
-            "json" to OutputFormat.JSON,
-            "JSON" to OutputFormat.JSON,
-            "Json" to OutputFormat.JSON,
-            "yaml" to OutputFormat.YAML,
-            "YAML" to OutputFormat.YAML,
-            "Yaml" to OutputFormat.YAML
-        )
-        
+        val testCases =
+            mapOf(
+                "txt" to OutputFormat.TXT,
+                "TXT" to OutputFormat.TXT,
+                "Txt" to OutputFormat.TXT,
+                "json" to OutputFormat.JSON,
+                "JSON" to OutputFormat.JSON,
+                "Json" to OutputFormat.JSON,
+                "yaml" to OutputFormat.YAML,
+                "YAML" to OutputFormat.YAML,
+                "Yaml" to OutputFormat.YAML,
+            )
+
         testCases.forEach { (input, expected) ->
             assertEquals(expected, OutputFormat.valueOf(input), "Failed for input: $input")
         }
@@ -94,11 +95,12 @@ class OutputFormatTest {
     @Test
     fun `test valueOf with invalid formats`() {
         // Test various invalid formats
-        val invalidFormats = listOf(
-            "invalid", "", "  txt  ", "txt!", "123", "tx", "txtx",
-            "xml", "csv", "html", "a".repeat(100), "tëxt", "txt😀"
-        )
-        
+        val invalidFormats =
+            listOf(
+                "invalid", "", "  txt  ", "txt!", "123", "tx", "txtx",
+                "xml", "csv", "html", "a".repeat(100), "tëxt", "txt😀",
+            )
+
         invalidFormats.forEach { format ->
             assertEquals(OutputFormat.UNKNOWN, OutputFormat.valueOf(format), "Failed for input: $format")
         }

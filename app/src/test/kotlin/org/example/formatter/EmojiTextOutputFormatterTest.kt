@@ -25,7 +25,7 @@ class EmojiTextOutputFormatterTest {
 //        println("issuerX500Principal.getName(RFC2253): " + cert.issuerX500Principal.getName("RFC2253"))
 //
 //        val result = formatter.format(connection)
-//        
+//
 //        // 调试：打印实际输出
 //        println("=== ACTUAL OUTPUT ===")
 //        println(result)
@@ -111,9 +111,15 @@ class EmojiTextOutputFormatterTest {
 
             override fun getIssuerDN(): java.security.Principal = X500Principal("CN=Sectigo Limited,O=Sectigo Limited,C=US")
 
-            override fun getSubjectDN(): java.security.Principal = X500Principal("CN=github.com,O=GitHub, Inc.,L=San Francisco,ST=California,C=US")
+            override fun getSubjectDN(): java.security.Principal =
+                X500Principal(
+                    "CN=github.com,O=GitHub, Inc.,L=San Francisco,ST=California,C=US",
+                )
 
-            override fun getSubjectX500Principal(): X500Principal = X500Principal("CN=github.com,O=GitHub, Inc.,L=San Francisco,ST=California,C=US")
+            override fun getSubjectX500Principal(): X500Principal =
+                X500Principal(
+                    "CN=github.com,O=GitHub, Inc.,L=San Francisco,ST=California,C=US",
+                )
 
             override fun getIssuerX500Principal(): X500Principal = X500Principal("CN=Sectigo Limited,O=Sectigo Limited,C=US")
 

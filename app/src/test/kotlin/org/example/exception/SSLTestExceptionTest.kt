@@ -8,7 +8,6 @@ import java.time.Instant
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -294,47 +293,51 @@ class SSLTestExceptionTest {
 
     @Test
     fun testCreateDetailedMessage() {
-        val message = SSLTestException.createDetailedMessage(
-            "Connection failed",
-            "example.com",
-            443,
-            "Network timeout"
-        )
+        val message =
+            SSLTestException.createDetailedMessage(
+                "Connection failed",
+                "example.com",
+                443,
+                "Network timeout",
+            )
 
         assertEquals("Connection failed for example.com:443 - Network timeout", message)
     }
 
     @Test
     fun testCreateDetailedMessageWithoutAdditionalInfo() {
-        val message = SSLTestException.createDetailedMessage(
-            "SSL handshake failed",
-            "example.com",
-            443
-        )
+        val message =
+            SSLTestException.createDetailedMessage(
+                "SSL handshake failed",
+                "example.com",
+                443,
+            )
 
         assertEquals("SSL handshake failed for example.com:443", message)
     }
 
     @Test
     fun testCreateDetailedMessageWithNullAdditionalInfo() {
-        val message = SSLTestException.createDetailedMessage(
-            "Certificate error",
-            "example.com",
-            443,
-            null
-        )
+        val message =
+            SSLTestException.createDetailedMessage(
+                "Certificate error",
+                "example.com",
+                443,
+                null,
+            )
 
         assertEquals("Certificate error for example.com:443", message)
     }
 
     @Test
     fun testCreateDetailedMessageWithBlankAdditionalInfo() {
-        val message = SSLTestException.createDetailedMessage(
-            "Configuration error",
-            "example.com",
-            443,
-            "   "
-        )
+        val message =
+            SSLTestException.createDetailedMessage(
+                "Configuration error",
+                "example.com",
+                443,
+                "   ",
+            )
 
         assertEquals("Configuration error for example.com:443", message)
     }

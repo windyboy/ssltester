@@ -13,24 +13,24 @@ interface ServiceLocator {
      * 获取 SSL 连接测试器
      */
     fun getSSLConnectionTester(): SSLConnectionTester
-    
+
     /**
      * 获取证书验证器
      */
     fun getCertificateValidator(): CertificateValidator
-    
+
     /**
      * 根据格式获取输出格式化器
      */
     fun getFormatter(format: org.example.model.OutputFormat): OutputFormatter
-    
+
     /**
      * 获取所有支持的格式化器
      */
     fun getAllFormatters(): Map<org.example.model.OutputFormat, OutputFormatter>
-    
+
     /**
      * 清理资源
      */
     fun shutdown()
-} 
+}

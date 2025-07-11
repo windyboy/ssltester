@@ -182,25 +182,26 @@ class CertificateValidator {
     private fun analyzeCertificateStrength(certificate: X509Certificate): CertificateStrength {
         return try {
             val publicKey = certificate.publicKey
-            val keySize = when (publicKey.algorithm) {
-                "RSA" -> {
-                    val rsaKey = publicKey as java.security.interfaces.RSAPublicKey
-                    rsaKey.modulus.bitLength()
+            val keySize =
+                when (publicKey.algorithm) {
+                    "RSA" -> {
+                        val rsaKey = publicKey as java.security.interfaces.RSAPublicKey
+                        rsaKey.modulus.bitLength()
+                    }
+                    "EC" -> {
+                        val ecKey = publicKey as java.security.interfaces.ECPublicKey
+                        ecKey.params.curve.field.fieldSize
+                    }
+                    "DSA" -> {
+                        val dsaKey = publicKey as java.security.interfaces.DSAPublicKey
+                        dsaKey.params.p.bitLength()
+                    }
+                    else -> {
+                        // Fallback to encoded size method for unknown algorithms
+                        publicKey.encoded.size * 8
+                    }
                 }
-                "EC" -> {
-                    val ecKey = publicKey as java.security.interfaces.ECPublicKey
-                    ecKey.params.curve.field.fieldSize
-                }
-                "DSA" -> {
-                    val dsaKey = publicKey as java.security.interfaces.DSAPublicKey
-                    dsaKey.params.p.bitLength()
-                }
-                else -> {
-                    // Fallback to encoded size method for unknown algorithms
-                    publicKey.encoded.size * 8
-                }
-            }
-            
+
             when {
                 keySize < 2048 -> CertificateStrength.WEAK
                 keySize == 2048 -> CertificateStrength.MEDIUM
