@@ -8,7 +8,7 @@ class AppVersionTest {
     @Test
     fun `test version constants and format`() {
         // Test all constants
-        assertEquals("0.0.2", AppVersion.VERSION)
+        assertEquals("0.0.3", AppVersion.VERSION)
         assertEquals("ssl-test", AppVersion.NAME)
         assertEquals("SSL/TLS Connection Test Tool", AppVersion.DESCRIPTION)
 
