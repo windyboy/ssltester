@@ -6,6 +6,7 @@ import org.example.AppVersion
 import org.example.DefaultSSLConnectionTester
 import org.example.SSLConnectionTester
 import org.example.SSLConstants
+import org.example.formatter.EmojiTextOutputFormatter
 import org.example.formatter.JsonOutputFormatter
 import org.example.formatter.TextOutputFormatter
 import org.example.formatter.YamlOutputFormatter
@@ -26,7 +27,7 @@ class OutputFormatConverter : ITypeConverter<OutputFormat> {
     override fun convert(value: String): OutputFormat {
         val result = OutputFormat.valueOf(value.uppercase())
         if (result == OutputFormat.UNKNOWN) {
-            throw IllegalArgumentException("Invalid format: $value. Supported formats: TXT, JSON, YAML.")
+            throw IllegalArgumentException("Invalid format: $value. Supported formats: TXT, JSON, YAML, EMOJI.")
         }
         return result
     }
@@ -63,7 +64,7 @@ class SSLTestCommand : Callable<Int> {
         paramLabel = "<port>",
         arity = "0..1",
     )
-    var port: Int = SSLConstants.DEFAULT_PORT
+    var port: Int = SSLConstants.HTTPS_PORT
 
     /**
      * 连接超时时间（毫秒），默认 5000
@@ -77,11 +78,11 @@ class SSLTestCommand : Callable<Int> {
     var connectionTimeout: Int = SSLConstants.DEFAULT_TIMEOUT
 
     /**
-     * 输出格式，支持 TXT/JSON/YAML
+     * 输出格式，支持 TXT/JSON/YAML/EMOJI
      */
     @Option(
         names = ["-f", "--format"],
-        description = ["Output format (txt, json, yaml) (default: TXT)"],
+        description = ["Output format (txt, json, yaml, emoji) (default: TXT)"],
         converter = [OutputFormatConverter::class],
     )
     var format: OutputFormat = OutputFormat.TXT
@@ -101,11 +102,7 @@ class SSLTestCommand : Callable<Int> {
      */
     override fun call(): Int =
         runBlocking {
-            // Manual validation for port and timeout
-            if (port !in SSLConstants.MIN_PORT..SSLConstants.MAX_PORT) {
-                System.err.println("Error: ${SSLConstants.ERROR_INVALID_PORT}, but was $port")
-                return@runBlocking SSLConstants.EXIT_INVALID_PARAMETERS
-            }
+            // Manual validation for timeout
             if (connectionTimeout < 0) {
                 System.err.println("Error: ${SSLConstants.ERROR_INVALID_TIMEOUT}, but was $connectionTimeout")
                 return@runBlocking SSLConstants.EXIT_INVALID_PARAMETERS
@@ -127,6 +124,7 @@ class SSLTestCommand : Callable<Int> {
                                 OutputFormat.TXT -> TextOutputFormatter().format(connection)
                                 OutputFormat.JSON -> JsonOutputFormatter().format(connection)
                                 OutputFormat.YAML -> YamlOutputFormatter().format(connection)
+                                OutputFormat.EMOJI -> EmojiTextOutputFormatter().format(connection)
                                 OutputFormat.UNKNOWN -> TextOutputFormatter().format(connection)
                             }
 

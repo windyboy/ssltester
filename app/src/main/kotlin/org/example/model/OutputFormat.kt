@@ -2,7 +2,7 @@ package org.example.model
 
 /**
  * 输出格式类型枚举。
- * 支持 TXT、JSON、YAML 三种格式。
+ * 支持 TXT、JSON、YAML、EMOJI 四种格式。
  */
 sealed class OutputFormat(val value: String) {
     /** 文本格式 */
@@ -13,6 +13,9 @@ sealed class OutputFormat(val value: String) {
 
     /** YAML 格式 */
     data object YAML : OutputFormat("YAML")
+
+    /** Emoji文本格式 */
+    data object EMOJI : OutputFormat("EMOJI")
 
     /** 未知格式 */
     data object UNKNOWN : OutputFormat("UNKNOWN")
@@ -28,6 +31,7 @@ sealed class OutputFormat(val value: String) {
                 "TXT" -> TXT
                 "JSON" -> JSON
                 "YAML" -> YAML
+                "EMOJI" -> EMOJI
                 else -> UNKNOWN
             }
         }

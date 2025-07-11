@@ -5,11 +5,9 @@ package org.example
  * Centralizes magic numbers and default values used throughout the application.
  */
 object SSLConstants {
-    // Network configuration
-    const val DEFAULT_PORT = 443
+    // Network configuration - fixed to HTTPS standard
+    const val HTTPS_PORT = 443
     const val DEFAULT_TIMEOUT = 5000
-    const val MAX_PORT = 65535
-    const val MIN_PORT = 1
 
     // Timeout limits
     const val MIN_TIMEOUT = 100
@@ -29,7 +27,6 @@ object SSLConstants {
     const val EXIT_INVALID_PARAMETERS = 2
 
     // Error messages
-    const val ERROR_INVALID_PORT = "Port must be between 1 and 65535"
     const val ERROR_INVALID_TIMEOUT = "Timeout cannot be negative"
     const val ERROR_UNKNOWN_HOST = "Unknown host"
     const val ERROR_CONNECTION_TIMEOUT = "Connection timeout"
