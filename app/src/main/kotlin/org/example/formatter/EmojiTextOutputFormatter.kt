@@ -26,6 +26,13 @@ class EmojiTextOutputFormatter : OutputFormatter {
                 append("🔒 SSL证书信息 - ${connection.host}:${connection.port}\n")
                 append("=".repeat(maxLineLength) + "\n")
 
+                // Display connection information
+                append("🔗 连接信息\n")
+                append("=".repeat(maxLineLength) + "\n")
+                append("🌐 协议: ${connection.protocol}\n")
+                append("🔐 加密套件: ${connection.cipherSuite}\n")
+                append("\n")
+
                 // Display certificate validation results first
                 connection.certificateValidation?.let { validation ->
                     append("🔍 证书验证结果\n")
