@@ -24,17 +24,12 @@ object SSLConstants {
     // SSL/TLS configuration
     val DEFAULT_ENABLED_PROTOCOLS = arrayOf("TLSv1.2", "TLSv1.3")
     const val DEFAULT_SSL_CONTEXT_PROTOCOL = "TLS"
-    const val MIN_TLS_VERSION = "TLSv1.2"
-    const val MAX_TLS_VERSION = "TLSv1.3"
 
     // Certificate validation
-    const val MAX_CERTIFICATE_CHAIN_LENGTH = 10
     const val OCSP_TIMEOUT = 5000
-    const val CRL_TIMEOUT = 5000
 
     // Output formatting
     const val MAX_LINE_LENGTH = 80
-    const val CERTIFICATE_WRAP_LENGTH = 60
 
     // Exit codes
     const val EXIT_SUCCESS = 0
@@ -52,17 +47,4 @@ object SSLConstants {
     const val ERROR_SSL_PROTOCOL = "SSL Protocol error"
     const val ERROR_INVALID_CONFIGURATION = "Invalid configuration"
     const val ERROR_CERTIFICATE_VALIDATION = "Certificate validation failed"
-
-    // Connection states
-    const val CONNECTION_STATE_INITIALIZING = "INITIALIZING"
-    const val CONNECTION_STATE_CONNECTING = "CONNECTING"
-    const val CONNECTION_STATE_HANDSHAKING = "HANDSHAKING"
-    const val CONNECTION_STATE_VALIDATING = "VALIDATING"
-    const val CONNECTION_STATE_COMPLETED = "COMPLETED"
-    const val CONNECTION_STATE_FAILED = "FAILED"
-
-    // Performance tuning
-    const val DEFAULT_BUFFER_SIZE = 8192
-    const val MAX_BUFFER_SIZE = 65536
-    const val MIN_BUFFER_SIZE = 1024
 }

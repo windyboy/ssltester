@@ -6,14 +6,11 @@ picocli = "4.7.7"
 jackson = "2.19.1" # For both jackson-databind and jackson-dataformat-yaml
 slf4j = "2.0.17"
 logback = "1.5.18"
-junitJupiter = "5.10.0"
-mockito = "5.10.0"
 kotlin = "2.1.21"
 coroutines = "1.8.1"
 kotlin-logging = "3.0.5"
 mockk = "1.14.4"
 bytebuddy = "1.14.14"
-# 新增迁移项
 junit = "5.11.2"
 junit-params = "5.11.2"
 picocli-plugin = "4.7.5"
@@ -26,16 +23,9 @@ benmanes = "0.52.0"
 jacoco = "0.8.11"
 bytebuddyagent = "1.14.12"
 
-# Certificate validation libraries
-# bouncycastle = "1.77"
-# certificate-transparency = "1.0.0"
-# pkix = "1.0.0"
-# pkix-ocsp = "1.0.0"
-
 [libraries]
 # Picocli
 picocli = { module = "info.picocli:picocli", version.ref = "picocli-plugin" }
-picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli-plugin" }
 
 # Jackson
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }

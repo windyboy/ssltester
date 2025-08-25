@@ -2,7 +2,27 @@
 
 本文档记录了SSL Test Tool的所有重要更改。
 
-## [0.0.4] - 2025-01-27
+## [0.0.5] - 2025-01-28
+
+### 🧹 代码清理和优化
+- **移除冗余依赖项**：清理了未使用的 `picocli-codegen`、`mockito`、`junitJupiter` 依赖
+- **清理未使用常量**：移除了 `AppVersion.NAME`、`AppVersion.DESCRIPTION` 等未使用的常量
+- **优化SSL常量**：移除了未使用的 `MIN_TLS_VERSION`、`MAX_TLS_VERSION`、`MAX_CERTIFICATE_CHAIN_LENGTH`、`CRL_TIMEOUT`、`CERTIFICATE_WRAP_LENGTH`、`CONNECTION_STATE_*` 等常量
+- **修复构建问题**：解决了 `Math.pow` 方法调用问题，使用 `Math.pow` 替代 `kotlin.math.pow`
+- **修复脚本错误**：修正了 `scripts/update-dependencies.sh` 中的文件名错误
+- **简化构建配置**：移除了重复的JVM参数配置
+- **代码质量提升**：所有导入都在使用中，没有冗余代码
+
+### 🔧 技术改进
+- 优化了 `RetryManager` 中的数学计算，使用更稳定的 `Math.pow` 方法
+- 简化了 `build.gradle.kts` 中的重复配置
+- 修复了 ktlint 代码风格问题（导入顺序）
+
+### 📚 文档更新
+- 更新了 `AppVersionTest` 测试，只测试实际使用的常量
+- 记录了所有清理的冗余代码和优化点
+
+## [0.0.4] - 2025-01-28
 
 ### 🎯 类型安全改进
 - 新增 `SSLTestResult` 密封类，提供类型安全的操作结果处理
@@ -64,7 +84,7 @@
 - 更新错误处理文档，说明新的异常类型和上下文
 - 新增性能特性说明，包括指标收集和优化特性
 
-## [0.0.3] - 2025-01-27
+## [0.0.3] - 2025-01-28
 
 ### 🧹 文档简化
 - 删除复杂的API文档（API.md）
@@ -85,7 +105,7 @@
 - 更新CHANGELOG.md格式，提高可读性
 - 移除不必要的复杂配置和说明
 
-## [0.0.2] - 2025-01-27
+## [0.0.2] - 2025-01-28
 
 ### 🚀 新功能
 - 实现SSL连接测试功能

@@ -171,7 +171,6 @@ allprojects {
                 "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
                 "--add-opens=java.base/java.io=ALL-UNNAMED",
                 "-Dsun.io.useCanonCaches=false",
-                "-XX:+IgnoreUnrecognizedVMOptions",
                 "-Dsun.misc.Unsafe.objectFieldOffset=ignore",
             ),
         )

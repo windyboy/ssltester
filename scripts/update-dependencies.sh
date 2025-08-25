@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 # Configuration
 VERSIONS_FILE="gradle/libs.versions.toml"
 BUILD_DIR="app/build/dependencyUpdates"
-REPORT_FILE="$BUILD_DIR/report.txt.txt"
+REPORT_FILE="$BUILD_DIR/report.txt"
 
 echo -e "${BLUE}🔧 SSL Test Tool - Dependency Update${NC}"
 echo "=========================================="

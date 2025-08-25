@@ -50,7 +50,7 @@ $ task build
 ./gradlew run --args="github.com --port 443 --format JSON --output result.json"
 
 # 使用构建的JAR文件
-java -jar app/build/libs/ssl-test-0.0.3-all.jar github.com --port 9443 --format YAML
+java -jar app/build/libs/ssl-test-0.0.5-all.jar github.com --port 9443 --format YAML
 
 # 使用Taskfile（推荐）
 task run HOST=github.com PORT=443 FORMAT=JSON
@@ -268,3 +268,27 @@ docker run ssl-test google.com --format JSON
 ## 🔄 更新日志
 
 查看 [CHANGELOG.md](CHANGELOG.md) 了解详细的更新历史。
+
+## 🧹 代码质量
+
+### 代码清理成果
+本项目经过全面的代码清理和优化，确保代码质量达到最高标准：
+
+- **无冗余依赖**：所有声明的依赖项都在实际使用中
+- **无未使用导入**：所有导入的类和方法都在代码中使用
+- **无死代码**：没有未使用的类、方法或常量
+- **无重复配置**：构建配置中移除了重复的JVM参数设置
+- **代码风格一致**：符合ktlint规范，导入顺序正确
+
+### 质量保证
+- 使用 JaCoCo 进行测试覆盖率检查（目标：行覆盖率80%，分支覆盖率70%）
+- 使用 ktlint 进行代码风格检查
+- 所有测试通过，无编译错误
+- 使用 Taskfile 进行自动化构建和测试
+
+### 维护性
+- 模块化架构设计，职责分离清晰
+- 完整的异常处理体系
+- 结构化日志记录
+- 类型安全的结果处理
+- 智能重试机制
