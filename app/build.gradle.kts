@@ -200,22 +200,16 @@ tasks.dependencyUpdates {
     checkForGradleUpdate = true
     outputFormatter = "plain"
     outputDir = "build/dependencyUpdates"
-    reportfileName = "report.txt"
+    reportfileName = "report"
 
-    // 官方推荐的稳定版本过滤方式
-    resolutionStrategy {
-        componentSelection {
-            all {
-                val isNonStable = { version: String ->
-                    val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
-                    val regex = ".*[.\\-](alpha|beta|rc|cr|m|preview|b|ea)[.\\d\\-+]*".toRegex(RegexOption.IGNORE_CASE)
-                    !stableKeyword && regex.containsMatchIn(version)
-                }
-                if (isNonStable(candidate.version) && !isNonStable(currentVersion)) {
-                    reject("Release candidate")
-                }
-            }
+    // Stable version filtering
+    rejectVersionIf {
+        val isNonStable = { version: String ->
+            val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
+            val regex = ".*[.\\-](alpha|beta|rc|cr|m|preview|b|ea)[.\\d\\-+]*".toRegex(RegexOption.IGNORE_CASE)
+            !stableKeyword && regex.containsMatchIn(version)
         }
+        isNonStable(candidate.version) && !isNonStable(currentVersion)
     }
 }
 
