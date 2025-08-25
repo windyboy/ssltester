@@ -9,7 +9,10 @@
 - 📜 证书链验证
 - 🌐 主机名验证
 - 📊 多种输出格式（文本、JSON、YAML、Emoji）
-- ⏱️ 连接超时配置
+- ⏱️ 可配置的超时设置（连接、读取、握手）
+- 🔄 重试机制支持
+- ✅ 智能配置验证
+- 🚨 详细的错误报告和分类
 
 ## 🛠️ 系统要求
 
@@ -43,10 +46,64 @@ $ task build
 ./gradlew run --args="github.com --port 443 --format JSON --output result.json"
 
 # 使用构建的JAR文件
-java -jar app/build/libs/ssl-test-0.0.2-all.jar github.com --port 9443 --format YAML
+java -jar app/build/libs/ssl-test-0.0.3-all.jar github.com --port 9443 --format YAML
 
 # 使用Taskfile（推荐）
 task run HOST=github.com PORT=443 FORMAT=JSON
+```
+
+## 🔧 高级配置选项
+
+### 超时配置
+
+```bash
+# 连接超时（TCP连接建立）
+--connect-timeout 5000
+
+# 读取超时（数据读取）
+--read-timeout 5000
+
+# 握手超时（SSL握手）
+--handshake-timeout 10000
+```
+
+### 验证选项
+
+```bash
+# 启用/禁用主机名验证
+--enable-hostname-verification
+--no-enable-hostname-verification
+
+# 启用/禁用OCSP验证
+--enable-ocsp-validation
+--no-enable-ocsp-validation
+```
+
+### 重试机制
+
+```bash
+# 最大重试次数
+--max-retries 3
+
+# 重试延迟（毫秒）
+--retry-delay 2000
+```
+
+### 完整示例
+
+```bash
+# 详细测试配置
+./gradlew run --args="example.com \
+  --port 8443 \
+  --connect-timeout 10000 \
+  --read-timeout 10000 \
+  --handshake-timeout 15000 \
+  --format JSON \
+  --output detailed_test.json \
+  --enable-hostname-verification \
+  --enable-ocsp-validation \
+  --max-retries 2 \
+  --retry-delay 2000"
 ```
 
 ## 📊 输出格式
@@ -63,8 +120,14 @@ task run HOST=github.com PORT=443 FORMAT=JSON
 | `<host>` | 要测试SSL/TLS连接的目标主机 | - | 是 |
 | `-p, --port` | 端口号 | 443 | 否 |
 | `--connect-timeout` | 连接超时时间（毫秒） | 5000 | 否 |
+| `--read-timeout` | 读取超时时间（毫秒） | 5000 | 否 |
+| `--handshake-timeout` | SSL握手超时时间（毫秒） | 10000 | 否 |
 | `-f, --format` | 输出格式（txt, json, yaml, emoji） | TXT | 否 |
 | `-o, --output` | 输出文件路径 | - | 否 |
+| `--enable-hostname-verification` | 启用主机名验证 | true | 否 |
+| `--enable-ocsp-validation` | 启用OCSP验证 | true | 否 |
+| `--max-retries` | 最大重试次数 | 1 | 否 |
+| `--retry-delay` | 重试延迟（毫秒） | 1000 | 否 |
 
 ## 📋 退出码
 
@@ -73,6 +136,8 @@ task run HOST=github.com PORT=443 FORMAT=JSON
 | 0 | 成功 |
 | 1 | 连接错误 |
 | 2 | 无效参数 |
+| 3 | 配置错误 |
+| 4 | 证书验证错误 |
 
 ## 💡 使用示例
 
@@ -80,11 +145,14 @@ task run HOST=github.com PORT=443 FORMAT=JSON
 # 测试网站的SSL证书（默认端口443）
 ./gradlew run --args="google.com"
 
-# 使用自定义端口
-./gradlew run --args="github.com --port 8443 --format json"
+# 使用自定义端口和超时
+./gradlew run --args="github.com --port 8443 --connect-timeout 10000 --format json"
 
-# 使用自定义超时时间
-./gradlew run --args="example.com --port 9443 --connect-timeout 10000"
+# 快速测试（较短超时）
+./gradlew run --args="example.com --connect-timeout 2000 --read-timeout 2000 --handshake-timeout 3000"
+
+# 详细测试（较长超时，启用所有验证）
+./gradlew run --args="stackoverflow.com --connect-timeout 10000 --read-timeout 10000 --handshake-timeout 15000 --enable-ocsp-validation --max-retries 2"
 
 # 保存结果到文件
 ./gradlew run --args="stackoverflow.com --port 443 --format yaml --output ssl_test.yaml"

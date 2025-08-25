@@ -20,6 +20,19 @@ sealed class OutputFormat(val value: String) {
     /** 未知格式 */
     data object UNKNOWN : OutputFormat("UNKNOWN")
 
+    /**
+     * 获取文件扩展名。
+     * @return 文件扩展名（不包含点）
+     */
+    fun getFileExtension(): String =
+        when (this) {
+            TXT -> "txt"
+            JSON -> "json"
+            YAML -> "yaml"
+            EMOJI -> "txt" // Emoji format outputs as text
+            UNKNOWN -> "txt"
+        }
+
     companion object {
         /**
          * 根据字符串获取对应的输出格式。

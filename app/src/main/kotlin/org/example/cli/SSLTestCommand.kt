@@ -74,6 +74,28 @@ class SSLTestCommand : Callable<Int> {
     var connectionTimeout: Int = SSLConstants.DEFAULT_TIMEOUT
 
     /**
+     * 读取超时时间（毫秒），默认 5000
+     */
+    @Option(
+        names = ["--read-timeout"],
+        description = ["Read timeout in milliseconds (default: 5000)"],
+        paramLabel = "<readTimeout>",
+        arity = "0..1",
+    )
+    var readTimeout: Int = SSLConstants.DEFAULT_TIMEOUT
+
+    /**
+     * 握手超时时间（毫秒），默认 10000
+     */
+    @Option(
+        names = ["--handshake-timeout"],
+        description = ["SSL handshake timeout in milliseconds (default: 10000)"],
+        paramLabel = "<handshakeTimeout>",
+        arity = "0..1",
+    )
+    var handshakeTimeout: Int = SSLConstants.DEFAULT_HANDSHAKE_TIMEOUT
+
+    /**
      * 输出格式，支持 TXT/JSON/YAML/EMOJI
      */
     @Option(
@@ -93,25 +115,72 @@ class SSLTestCommand : Callable<Int> {
     var outputFile: String? = null
 
     /**
+     * 是否启用主机名验证
+     */
+    @Option(
+        names = ["--enable-hostname-verification"],
+        description = ["Enable hostname verification (default: true)"],
+        negatable = true,
+    )
+    var enableHostnameVerification: Boolean = true
+
+    /**
+     * 是否启用OCSP验证
+     */
+    @Option(
+        names = ["--enable-ocsp-validation"],
+        description = ["Enable OCSP validation (default: true)"],
+        negatable = true,
+    )
+    var enableOCSPValidation: Boolean = true
+
+    /**
+     * 最大重试次数
+     */
+    @Option(
+        names = ["--max-retries"],
+        description = ["Maximum number of retries (default: 1)"],
+        paramLabel = "<maxRetries>",
+        arity = "0..1",
+    )
+    var maxRetries: Int = 1
+
+    /**
+     * 重试延迟（毫秒）
+     */
+    @Option(
+        names = ["--retry-delay"],
+        description = ["Delay between retries in milliseconds (default: 1000)"],
+        paramLabel = "<retryDelay>",
+        arity = "0..1",
+    )
+    var retryDelay: Long = 1000L
+
+    /**
      * 命令执行主逻辑。
      * @return 退出码，0 表示成功，非 0 表示失败
      */
     override fun call(): Int =
         runBlocking {
-            // Manual validation for timeout
-            if (connectionTimeout < 0) {
-                System.err.println("Error: ${SSLConstants.ERROR_INVALID_TIMEOUT}, but was $connectionTimeout")
-                return@runBlocking SSLConstants.EXIT_INVALID_PARAMETERS
-            }
             try {
                 logger.info { "Testing SSL connection to $host:$port" }
 
+                // Create configuration - validation happens automatically in SSLTestConfig constructor
                 val config =
                     SSLTestConfig(
                         connectionTimeout = connectionTimeout,
+                        readTimeout = readTimeout,
+                        handshakeTimeout = handshakeTimeout,
                         format = format,
                         outputFile = outputFile,
+                        enableHostnameVerification = enableHostnameVerification,
+                        enableOCSPValidation = enableOCSPValidation,
+                        maxRetries = maxRetries,
+                        retryDelay = retryDelay,
                     )
+
+                // Validate configuration
+                config.validate()
 
                 sslTester.testConnection(host, port, config)
                     .onSuccess { connection ->
@@ -138,13 +207,29 @@ class SSLTestCommand : Callable<Int> {
                             )
                         val formatter = ComponentFactoryManager.getFactory().createFormatter(OutputFormat.TXT)
                         System.err.println(formatter.format(failedConnection))
-                        return@runBlocking SSLConstants.EXIT_CONNECTION_ERROR
+
+                        // Return appropriate exit code based on error type
+                        return@runBlocking when (error) {
+                            is org.example.exception.SSLTestException.ConfigurationError ->
+                                SSLConstants.EXIT_CONFIGURATION_ERROR
+                            is org.example.exception.SSLTestException.CertificateError ->
+                                SSLConstants.EXIT_CERTIFICATE_ERROR
+                            else -> SSLConstants.EXIT_CONNECTION_ERROR
+                        }
                     }
 
                 SSLConstants.EXIT_SUCCESS
             } catch (e: Exception) {
                 logger.error(e) { "Command execution failed" }
-                SSLConstants.EXIT_CONNECTION_ERROR
+
+                // Return appropriate exit code based on exception type
+                when (e) {
+                    is org.example.exception.SSLTestException.ConfigurationError ->
+                        SSLConstants.EXIT_CONFIGURATION_ERROR
+                    is org.example.exception.SSLTestException.CertificateError ->
+                        SSLConstants.EXIT_CERTIFICATE_ERROR
+                    else -> SSLConstants.EXIT_CONNECTION_ERROR
+                }
             }
         }
 }
