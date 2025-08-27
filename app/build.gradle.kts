@@ -63,8 +63,8 @@ java {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
-        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
         freeCompilerArgs.addAll(
             listOf(
                 "-Xjsr305=strict",
@@ -156,8 +156,8 @@ kotlin {
     jvmToolchain(21)
     sourceSets.all {
         languageSettings {
-            languageVersion = "2.1"
-            apiVersion = "2.1"
+            languageVersion = "2.0"
+            apiVersion = "2.0"
         }
     }
 }
