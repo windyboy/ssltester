@@ -15,7 +15,7 @@ val projectVersion = versionMatch?.groupValues?.get(1) ?: "0.0.2"
 plugins {
     alias(libs.plugins.application)
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.ktlint)
+    // alias(libs.plugins.ktlint)  // Temporarily disabled for VS Code extension compatibility
     jacoco // Built-in plugin, no version needed
     alias(libs.plugins.benmanes)
     distribution // Built-in plugin for creating distributions

@@ -21,6 +21,7 @@ ktlint = "12.0.3"
 benmanes = "0.52.0"
 jacoco = "0.8.11"
 bytebuddyagent = "1.14.12"
+gradle = "8.5"
 
 [libraries]
 # Picocli
