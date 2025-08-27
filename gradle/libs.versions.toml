@@ -17,8 +17,7 @@ picocli-plugin = "4.7.5"
 bouncycastle = "1.72"
 pkixocsp = "2.5.0"
 junit-platform-launcher = "1.11.2"
-shadow = "8.3.8"
-ktlint = "12.1.1"
+ktlint = "12.0.3"
 benmanes = "0.52.0"
 jacoco = "0.8.11"
 bytebuddyagent = "1.14.12"
@@ -63,7 +62,5 @@ byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "b
 [plugins]
 application = { id = "application" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 benmanes = { id = "com.github.ben-manes.versions", version.ref = "benmanes" }
-jacoco = { id = "jacoco", version = "0.8.11" }

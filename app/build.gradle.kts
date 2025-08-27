@@ -15,10 +15,10 @@ val projectVersion = versionMatch?.groupValues?.get(1) ?: "0.0.2"
 plugins {
     alias(libs.plugins.application)
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.shadow)
     alias(libs.plugins.ktlint)
-    jacoco // 仍然用内置id
+    jacoco // Built-in plugin, no version needed
     alias(libs.plugins.benmanes)
+    distribution // Built-in plugin for creating distributions
 }
 
 repositories {
@@ -90,9 +90,9 @@ tasks.named("jar") {
     enabled = false
 }
 
-tasks.named("shadowJar") {
-    enabled = true
-}
+// tasks.named("shadowJar") {
+//     enabled = true
+// }
 
 // Run task configuration
 tasks.named<JavaExec>("run") {
@@ -136,20 +136,20 @@ tasks.withType<Jar> {
 }
 
 // Shadow jar specific configuration
-tasks.shadowJar {
-    mergeServiceFiles()
-    // You can override specific settings here if needed
-    // archiveBaseName.set("ssl-test-fat")
-}
+// tasks.shadowJar {
+//     mergeServiceFiles()
+//     // You can override specific settings here if needed
+//     // archiveBaseName.set("ssl-test-fat")
+// }
 
 // Fix start scripts dependencies
 tasks.named("startScripts") {
-    dependsOn(tasks.shadowJar)
+    // dependsOn(tasks.shadowJar)
 }
 
-tasks.named("startShadowScripts") {
-    dependsOn(tasks.shadowJar)
-}
+// tasks.named("startShadowScripts") {
+//     dependsOn(tasks.shadowJar)
+// }
 
 // Configure Kotlin daemon
 kotlin {
