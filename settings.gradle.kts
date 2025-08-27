@@ -13,10 +13,9 @@ pluginManagement {
     }
 }
 
-plugins {
-    // Apply the foojay-resolver plugin to allow automatic download of JDKs
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
-}
+// The foojay-resolver plugin was previously used to auto-download JDKs.
+// It has been removed to avoid plugin resolution failures in environments
+// such as VS Code where the plugin repository may be unreachable.
 
 rootProject.name = "ssltest"
 include("app")
